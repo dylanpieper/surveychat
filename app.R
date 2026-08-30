@@ -1,13 +1,14 @@
-library(shiny)
-library(shinychat)
-library(bslib)
-library(ellmer)
-library(DBI)
-library(RSQLite)
-library(promises)
+# runApp() breaks box's path detection for modules, so anchor the module search
+# path at the app directory
+Sys.setenv(R_BOX_PATH = getwd())
 
-# Load functions module
-fns <- modules::use("functions.R")
+box::use(
+  shiny[shinyApp],
+  bslib[card, card_header, page_fillable],
+  shinychat[chat_ui],
+  ellmer[chat_claude, type_boolean, type_object, type_string],
+  R/server[chat_survey],
+)
 
 # Messages ----
 messages <- list(
@@ -104,7 +105,7 @@ ui <- page_fillable(
 
 # Server ----
 server <- \(input, output, session) {
-  fns$chat_survey(input, output, session, chat, questions, messages, content)
+  chat_survey(input, output, session, chat, questions, messages, content)
 }
 
 # Run ----
