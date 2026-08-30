@@ -1,24 +1,119 @@
 # surveybot
 
-surveybot enables conversational data collection using [shinychat](https://posit-dev.github.io/shinychat/). Like a traditional interview, users can answer questions through natural dialogue while the LLM extracts structured data, generates content, and asks adaptive follow-up questions.
+surveybot collects data in a conversation with [shinychat](https://posit-dev.github.io/shinychat/). The user answers structured questions in a natural dialogue. At the same time, the LLM extracts the data, generates content, and asks adaptive questions.
 
 ## Usage 🍦✨
 
 ``` r
+renv::restore()
 shiny::runApp("app.R")
 ```
 
-The demo collects ice cream preferences through a shinychat UI. The files are modular to make your own surveybot (package to come).
+Set an API key for your LLM provider. The default chat function `ellmer::chat_claude()` reads `ANTHROPIC_API_KEY`.
+
+If your key is identity-linked, the API also needs the ID of the workspace. Set `ANTHROPIC_WORKSPACE_ID` in `~/.Renviron`. You can find the ID in the Anthropic Console, in the settings of the workspace.
+
+The demo collects the ice cream preferences of the user. The files are modular, and you can make your own surveybot from them.
 
 ## Key Features
 
 -   **LLM data extraction** with structured schemas and validation
--   **Adaptive questioning** based on user responses
--   **Automatic retry logic** for unclear answers
--   **SQL storage** with tables "sessions" and "responses" (default is SQLite)
+-   **Adaptive questions** that the LLM writes from the last answer of the user
+-   **Generated content** before a fixed question
+-   **Automatic retries** for unclear answers
+-   **Simulated typing** that shows one character at a time
+-   **SQL database** with the tables "sessions" and "responses" (SQLite by default)
+-   **Response data** that includes the retry counts and the duration of each question
 
 ## Files
 
--   `app.R` - Main Shiny application
--   `functions.R` - Database operations and chat utilities
--   `analyze.R` - Database analysis script
+-   `app.R` - The Shiny application with the questions, the messages, and the content templates
+-   `R/` - The [box](https://klmr.me/box/) modules
+    -   `db.R` - The database setup and the database operations
+    -   `llm.R` - The structured extraction and the content generation
+    -   `utils.R` - The template interpolation and the text functions
+    -   `stream.R` - The simulated typing for the messages of the bot
+    -   `config.R` - The configuration of the application
+    -   `survey.R` - The survey state machine
+    -   `server.R` - The Shiny server logic
+-   `analyze.R` - The analysis script for the database
+-   `renv.lock` - The package versions ([renv](https://rstudio.github.io/renv/))
+
+## Programming Patterns
+
+### Declarative Surveys
+
+`app.R` contains data only. A survey has three lists: `questions`, `messages`, and `content`. The application sends these lists to `chat_survey()`. To make a different surveybot, change the lists. Do not change the modules.
+
+``` r
+list(
+  id = "ice_cream",                                    # The response field and the database column
+  text = "Hey {name}! What's your favorite flavor?",   # The app fills {placeholders} from the previous answers
+  content = "funfact",                                 # An optional content template
+  schema = type_object(                                # The ellmer extraction schema
+    ice_cream = type_string("The ice cream flavor"),
+    answered_clearly = type_boolean("TRUE if they mentioned any flavor")
+  )
+)
+```
+
+### Extraction as Validation
+
+Each schema has an answer field and an `answered_clearly` flag. One LLM call extracts the answer and also rates the answer. Therefore, the application does not need a second step for the validation, and it does not need a regular expression.
+
+If the flag is `FALSE`, the survey asks the question again. The maximum number of retries is `config$tries`. After the last retry, the survey keeps the unclear answer and continues to the next question. The user cannot stop the survey with a bad answer.
+
+### Template Interpolation
+
+The questions, the prompts, and the messages use the same `{placeholder}` syntax. The application replaces each placeholder with a value from the previous answers. There are two functions:
+
+-   `interpolate()` replaces the placeholder with the value.
+-   `interpolate_with_context()` also makes the first letter uppercase if the value starts a sentence.
+
+If a value is not available, the application writes the name of the variable. It does not stop with an error.
+
+The prompt also declares the data that it needs. `extract_variables()` reads the prompt and finds the `{names}`. Then the application gets only these fields from the responses. If you add `{brand_shop}` to a prompt, the application supplies the data automatically.
+
+### Content Templates
+
+A `content` entry has a `prompt` and an optional `intro`. If the entry has an `intro`, the application puts the generated text before the next question:
+
+``` r
+funfact = list(
+  prompt = "Share a fun fact about {ice_cream} ice cream.",
+  intro = "Oh, {ice_cream}! {content}\n\n{next_question}"
+)
+```
+
+If the entry does not have an `intro`, the generated text becomes the question. This is the adaptive branch, and the LLM writes the question from the last answer of the user.
+
+If the generation fails, the application skips the adaptive question and continues with the next fixed question.
+
+### Configuration
+
+`default_config()` holds all of the parameters:
+
+-   `db_path` and `db_driver` - The database. SQLite is the default, but you can use a different driver.
+-   `tries` - The maximum number of retries for an unclear answer.
+-   `character_delay` and `delay_variance` - The speed of the simulated typing. Use `character_delay = 0` for no delay.
+-   `response_delay` - The delay before the bot starts a message.
+-   `version` - The version of the question set, which the application writes to each session.
+
+``` r
+chat_survey(
+  input, output, session, chat, questions, messages, content,
+  config = default_config(db_path = "prod.db", tries = 3, character_delay = 0)
+)
+```
+
+## Data Model
+
+The table `sessions` has one record for each user. The record has the times of the start and the completion, the flag `completed`, the total `retry_count`, the `question_set_version`, and the `duration_seconds`.
+
+The table `responses` has one record for each answer. Each record refers to a session and includes the `question_id`, the `question_order`, the `question_text` that the application showed, the `input_raw`, the `input_extracted`, the flag `answered_clearly`, the `retry_attempt`, and the `question_duration_seconds`. The text of an adaptive question is different for each user, thus the application keeps it with the answer.
+
+The application keeps the raw input and the extracted input. Therefore, you can examine the quality of the extraction after the survey. The indexes cover the queries by session, by question, and by order.
+
+``` r
+source("analyze.R")
+```
