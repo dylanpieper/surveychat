@@ -143,7 +143,14 @@ questions <- list(
 )
 
 # Setup chat ----
-chat <- chat_claude(echo = "none")
+# An identity-linked API key must name the workspace that the request acts in
+workspace_id <- Sys.getenv("ANTHROPIC_WORKSPACE_ID")
+
+chat <- chat_claude(
+  model = "claude-haiku-4-5-20251001",
+  api_headers = if (nzchar(workspace_id)) c("anthropic-workspace-id" = workspace_id) else character(),
+  echo = "none"
+)
 
 # UI ----
 ui <- page_fillable(
