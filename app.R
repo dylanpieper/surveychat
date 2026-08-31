@@ -143,12 +143,9 @@ questions <- list(
 )
 
 # Setup chat ----
-# An identity-linked API key must name the workspace that the request acts in
-workspace_id <- Sys.getenv("ANTHROPIC_WORKSPACE_ID")
-
+# Swap in any ellmer chat function to use a different provider
 chat <- chat_claude(
   model = "claude-haiku-4-5-20251001",
-  api_headers = if (nzchar(workspace_id)) c("anthropic-workspace-id" = workspace_id) else character(),
   echo = "none"
 )
 

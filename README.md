@@ -9,9 +9,7 @@ renv::restore()
 shiny::runApp("app.R")
 ```
 
-Set an API key for your LLM provider. The default chat function `ellmer::chat_claude()` reads `ANTHROPIC_API_KEY`.
-
-If your key is identity-linked, the API also needs the ID of the workspace. Set `ANTHROPIC_WORKSPACE_ID` in `~/.Renviron`. You can find the ID in the Anthropic Console, in the settings of the workspace.
+Set an API key for your LLM provider. The demo uses `ellmer::chat_claude()`, which reads `ANTHROPIC_API_KEY`. To use a different provider, swap in another `ellmer` chat function in `app.R`.
 
 The demo collects the ice cream preferences of the user. The files are modular, and you can make your own surveybot from them.
 
