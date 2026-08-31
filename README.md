@@ -20,6 +20,8 @@ The demo collects the ice cream preferences of the user. The files are modular, 
 -   **Generated content** before a fixed question
 -   **Automatic retries** for unclear answers
 -   **Simulated typing** that shows one character at a time
+-   **Progress cue** in the header that tracks the current question
+-   **Retired input** when the survey ends, see a closing message
 -   **SQL database** with the tables "sessions" and "responses" (SQLite by default)
 -   **Response data** that includes the retry counts and the duration of each question
 

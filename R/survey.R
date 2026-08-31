@@ -53,6 +53,14 @@ Survey <- function(chat, questions, messages, content, config = default_config()
     self$questions[[1]]$text
   }
 
+  # Current question number and total, read live from the survey state
+  self$get_progress <- function() {
+    list(
+      current = min(self$q_num, length(self$questions)),
+      total = length(self$questions)
+    )
+  }
+
   # Cleanup database connection
   self$cleanup <- function() {
     if (!is.null(self$con)) {

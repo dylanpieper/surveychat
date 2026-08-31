@@ -4,10 +4,9 @@ Sys.setenv(R_BOX_PATH = getwd())
 
 box::use(
   shiny[shinyApp],
-  bslib[card, card_header, page_fillable],
-  shinychat[chat_ui],
   ellmer[chat_claude, type_boolean, type_object, type_string],
   R / server[chat_survey],
+  R / ui[survey_ui],
 )
 
 # Messages ----
@@ -17,7 +16,8 @@ messages <- list(
   completion = paste(
     "Thanks, {name}! I recorded your love for {ice_cream}! 🤓📊",
     "I hope you enjoy your next scoop soon! 🍦✨"
-  )
+  ),
+  closed = "Survey complete. Thank you!"
 )
 
 # Content templates ----
@@ -150,12 +150,7 @@ chat <- chat_claude(
 )
 
 # UI ----
-ui <- page_fillable(
-  card(
-    card_header("SurveyBot"),
-    chat_ui(id = "chat")
-  )
-)
+ui <- survey_ui("SurveyBot")
 
 # Server ----
 server <- \(input, output, session) {

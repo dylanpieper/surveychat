@@ -1,10 +1,12 @@
 #' Shiny server logic for the chat survey
 
 box::use(
-  shiny[observe, observeEvent, onStop],
+  promises[then],
+  shiny[observe, observeEvent, onStop, reactiveVal, renderUI],
   R/config[default_config],
   R/stream[bot_response],
   R/survey[Survey],
+  R/ui[survey_complete, survey_progress],
 )
 
 #' Survey in Shiny server
@@ -21,8 +23,23 @@ chat_survey <- function(input, output, session, chat, questions, messages,
                         content, config = default_config()) {
   survey <- NULL
   initialized <- FALSE
+  progress <- reactiveVal(list(
+    current = 1,
+    total = length(questions),
+    complete = FALSE
+  ))
+  finished <- reactiveVal(FALSE)
 
-  # Stream a message into the chat UI
+  output$survey_progress <- renderUI({
+    state <- progress()
+    survey_progress(state$current, state$total, complete = state$complete)
+  })
+
+  output$survey_footer <- renderUI({
+    if (finished()) survey_complete(messages$closed)
+  })
+
+  # Stream a message into the chat UI, returning the stream's promise
   send <- function(message) {
     shinychat::chat_append("chat", bot_response(
       message,
@@ -30,6 +47,16 @@ chat_survey <- function(input, output, session, chat, questions, messages,
       character_delay = config$character_delay,
       delay_variance = config$delay_variance
     ), session = session)
+  }
+
+  # Advance the progress cue to whatever question the survey is now on
+  track <- function() {
+    state <- survey$get_progress()
+    progress(list(
+      current = state$current,
+      total = state$total,
+      complete = FALSE
+    ))
   }
 
   # Initialize survey and send first question
@@ -47,6 +74,7 @@ chat_survey <- function(input, output, session, chat, questions, messages,
 
       # Send welcome message first
       send(survey$init())
+      track()
 
       # Send first question as separate message after delay
       first_question <- survey$get_first_question()
@@ -63,12 +91,23 @@ chat_survey <- function(input, output, session, chat, questions, messages,
     result <- survey$process_input(input$chat_user_input)
 
     if (!is.null(result$message)) {
-      send(result$message)
-
       # Survey finished
       if (result$complete) {
+        state <- survey$get_progress()
+        progress(list(
+          current = state$total,
+          total = state$total,
+          complete = TRUE
+        ))
+
+        # Retire the input only after the closing message has streamed
+        then(send(result$message), \(...) finished(TRUE))
+
         survey$cleanup()
         survey <<- NULL
+      } else {
+        send(result$message)
+        track()
       }
     }
   })
