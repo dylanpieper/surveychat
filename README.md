@@ -98,7 +98,7 @@ If the generation fails, the application skips the adaptive question and continu
 
 ### Portable SQL
 
-`app.R` opens the connection and passes it to `chat_survey()`. The application never opens one of its own, so every argument that a driver needs stays in one place:
+`app.R` opens the connection and passes it to `chat_survey()`, thus every driver argument stays in one place:
 
 ``` r
 con <- dbConnect(RSQLite::SQLite(), "survey.db")
@@ -109,29 +109,9 @@ onStop(\() dbDisconnect(con))
 #   dbConnect(RPostgres::Postgres(), host = "localhost", dbname = "survey")
 ```
 
-`R/db.R` builds every statement from DBI primitives, thus the same code runs on each backend. Three rules keep it portable:
+`R/db.R` builds every statement from DBI primitives, thus the same code runs on each backend. `R/dialect.R` holds the differences that are left: how a driver declares an auto-incrementing key, whether it accepts a foreign key, whether it has `INSERT ... RETURNING`, and how it reports the last generated id. The application matches an entry on the class of the connection, and a driver without an entry gets the ANSI defaults.
 
--   Identifiers and values go through `dbQuoteIdentifier()` and `dbQuoteLiteral()`. The application does not write `?` or `$1` placeholders, because the syntax of a placeholder is different on each driver.
--   The application computes the durations in R. It does not call a SQL date function, because `julianday()`, `EXTRACT`, and `TIMESTAMPDIFF` are different on each backend.
--   The application creates a table only if the table is absent, therefore it does not need `CREATE INDEX IF NOT EXISTS`, which MySQL does not have.
-
-`R/dialect.R` holds what is left. A driver is one entry, and the application matches the entry on the class of the connection:
-
-``` r
-duckdb_connection = list(
-  pre_ddl = \(table, column) paste0("CREATE SEQUENCE IF NOT EXISTS seq_", table),
-  serial_pk = \(table, column) {
-    paste0(column, " INTEGER PRIMARY KEY DEFAULT nextval('seq_", table, "')")
-  },
-  foreign_keys = FALSE,
-  returning = TRUE,
-  last_id = \(table, column) paste0("SELECT currval('seq_", table, "') AS id")
-)
-```
-
-An entry answers four questions: how the driver declares an auto-incrementing key, whether the driver accepts a foreign key, whether the driver has `INSERT ... RETURNING`, and how the driver reports the last generated id. A driver without an entry gets the ANSI defaults. The application tries `RETURNING`, and if the driver rejects it, the application puts the insert and the id query in one transaction instead.
-
-The repository has entries for SQLite, DuckDB, Postgres, and MySQL or MariaDB. To support another backend, add an entry.
+The application supports SQLite, DuckDB, Postgres, and MySQL/MariaDB. To support another backend, add an entry.
 
 ### Configuration
 
