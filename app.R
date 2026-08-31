@@ -7,7 +7,7 @@ box::use(
   bslib[card, card_header, page_fillable],
   shinychat[chat_ui],
   ellmer[chat_claude, type_boolean, type_object, type_string],
-  R/server[chat_survey],
+  R / server[chat_survey],
 )
 
 # Messages ----
@@ -49,7 +49,7 @@ questions <- list(
     text = "What's your name?",
     schema = type_object(
       name = type_string(
-        "Just the person's name, e.g. 'Dylan' from 'call me dylan'"
+        "Just the person's first name, e.g. 'Dylan' from 'call me dylan' or 'Dylan Pieper'"
       ),
       answered_clearly = type_boolean(
         paste(
