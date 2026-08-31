@@ -111,7 +111,7 @@ onStop(\() dbDisconnect(con))
 
 `R/db.R` builds every statement from DBI primitives, thus the same code runs on each backend. `R/dialect.R` holds the differences that are left: how a driver declares an auto-incrementing key, whether it accepts a foreign key, whether it has `INSERT ... RETURNING`, and how it reports the last generated id. The application matches an entry on the class of the connection, and a driver without an entry gets the ANSI defaults.
 
-The application supports SQLite, DuckDB, Postgres, and MySQL/MariaDB. To support another backend, add an entry.
+The application supports SQLite, DuckDB, Postgres, and MySQL/MariaDB. Add other backends to `R/dialect.R`.
 
 ### Configuration
 
