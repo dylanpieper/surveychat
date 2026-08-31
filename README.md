@@ -25,30 +25,16 @@ The demo collects the ice cream preferences of the user. The files are modular, 
 -   **SQL database** with the tables "sessions" and "responses" (SQLite by default)
 -   **Response data** that includes the retry counts and the duration of each question
 
-## Files
-
--   `app.R` - The Shiny application with the questions, the messages, and the content templates
--   `R/` - The [box](https://klmr.me/box/) modules
-    -   `db.R` - The database setup and the database operations
-    -   `llm.R` - The structured extraction and the content generation
-    -   `utils.R` - The template interpolation and the text functions
-    -   `stream.R` - The simulated typing for the messages of the bot
-    -   `config.R` - The configuration of the application
-    -   `survey.R` - The survey state machine
-    -   `server.R` - The Shiny server logic
--   `analyze.R` - The analysis script for the database
--   `renv.lock` - The package versions ([renv](https://rstudio.github.io/renv/))
-
 ## Programming Patterns
 
 ### Declarative Surveys
 
-`app.R` contains data only. A survey has three lists: `questions`, `messages`, and `content`. The application sends these lists to `chat_survey()`. To make a different surveybot, change the lists. Do not change the modules.
+`app.R` contains data only. A survey has three lists: `questions`, `messages`, and `content`. The application sends these lists to `chat_survey()`. To make a different surveybot, modify the lists.
 
 ``` r
 list(
-  id = "ice_cream",                                    # The response field and the database column
-  text = "Hey {name}! What's your favorite flavor?",   # The app fills {placeholders} from the previous answers
+  id = "ice_cream",                                    # The response field and the database column name
+  text = "Hey {name}! What's your favorite flavor?",   # The app fills {placeholders} from previous answers
   content = "funfact",                                 # An optional content template
   schema = type_object(                                # The ellmer extraction schema
     ice_cream = type_string("The ice cream flavor"),
@@ -85,7 +71,32 @@ funfact = list(
 )
 ```
 
-If the entry does not have an `intro`, the generated text becomes the question. This is the adaptive branch, and the LLM writes the question from the last answer of the user.
+If the entry does not have an `intro`, the generated text becomes the question. This is the adaptive branch, and the LLM writes the question from the last answer of the user. The question that uses the template sets `text = NULL`:
+
+``` r
+# Content templates ----
+follow_up = list(
+  prompt = paste(
+    "User '{name}' likes {ice_cream} ice cream because: {why_favorite}.",
+    "Acknowledge their reason briefly. Then, generate one curious follow-up question",
+    "about their ice cream preference based on what they said.",
+    "Return ONLY the question text with no preamble."
+  )
+)
+
+# Survey questions ----
+list(
+  id = "fu_favorite",
+  text = NULL,
+  content = "follow_up",
+  schema = type_object(
+    fu_favorite = type_string("The core answer to the adaptive question"),
+    answered_clearly = type_boolean("TRUE if they engaged with the question")
+  )
+)
+```
+
+The application supplies `{name}`, `{ice_cream}`, and `{why_favorite}` from the previous answers. The reply of the LLM becomes the question that the user sees. The application keeps this text in the `question_text` of the response, because the text is different for each user.
 
 If the generation fails, the application skips the adaptive question and continues with the next fixed question.
 
@@ -93,11 +104,11 @@ If the generation fails, the application skips the adaptive question and continu
 
 `default_config()` holds all of the parameters:
 
--   `db_path` and `db_driver` - The database. SQLite is the default, but you can use a different driver.
--   `tries` - The maximum number of retries for an unclear answer.
--   `character_delay` and `delay_variance` - The speed of the simulated typing. Use `character_delay = 0` for no delay.
--   `response_delay` - The delay before the bot starts a message.
--   `version` - The version of the question set, which the application writes to each session.
+-   `db_path` and `db_driver`: The database. SQLite is the default, but you can use a different driver.
+-   `tries`: The maximum number of retries for an unclear answer.
+-   `character_delay` and `delay_variance`: The speed of the simulated typing. Use `character_delay = 0` for no delay.
+-   `response_delay`: The delay before the bot starts a message.
+-   `version`: The version of the question set, which the application writes to each session.
 
 ``` r
 chat_survey(
