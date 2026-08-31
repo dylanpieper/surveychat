@@ -3,7 +3,7 @@ library(RSQLite)
 library(tidyverse)
 
 # Connect to database ----
-con <- dbConnect(SQLite(), "survey.db")
+con <- dbConnect(RSQLite::SQLite(), "survey.db")
 
 # Basic queries ----
 

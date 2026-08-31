@@ -14,12 +14,13 @@ box::use(
 #' @param output Shiny output object
 #' @param session Shiny session object
 #' @param chat Chat object for AI interactions
+#' @param con Database connection, opened and closed by the caller
 #' @param questions List of survey questions
 #' @param messages Message templates
 #' @param content Content generation templates
 #' @param config Optional configuration (uses defaults if not provided)
 #' @export
-chat_survey <- function(input, output, session, chat, questions, messages,
+chat_survey <- function(input, output, session, chat, con, questions, messages,
                         content, config = default_config()) {
   survey <- NULL
   initialized <- FALSE
@@ -63,7 +64,7 @@ chat_survey <- function(input, output, session, chat, questions, messages,
   observe({
     if (!initialized) {
       initialized <<- TRUE
-      survey <<- Survey(chat, questions, messages, content, config)
+      survey <<- Survey(chat, con, questions, messages, content, config)
 
       # Setup cleanup on session end
       onStop(\() {

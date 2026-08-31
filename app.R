@@ -1,9 +1,9 @@
-# runApp() breaks box's path detection for modules, so anchor the module search
-# path at the app directory
+# Modules ----
 Sys.setenv(R_BOX_PATH = getwd())
 
 box::use(
-  shiny[shinyApp],
+  DBI[dbConnect, dbDisconnect],
+  shiny[onStop, shinyApp],
   ellmer[chat_claude, type_boolean, type_object, type_string],
   R / server[chat_survey],
   R / ui[survey_ui],
@@ -149,12 +149,16 @@ chat <- chat_claude(
   echo = "none"
 )
 
+# Connect to database ----
+con <- dbConnect(RSQLite::SQLite(), "survey.db")
+onStop(\() dbDisconnect(con))
+
 # UI ----
 ui <- survey_ui("SurveyBot")
 
 # Server ----
 server <- \(input, output, session) {
-  chat_survey(input, output, session, chat, questions, messages, content)
+  chat_survey(input, output, session, chat, con, questions, messages, content)
 }
 
 # Run ----

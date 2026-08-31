@@ -10,18 +10,16 @@ box::use(
 
 #' Create a Survey class instance
 #' @param chat Chat object for AI interactions
+#' @param con Database connection, owned by the caller
 #' @param questions List of survey questions
 #' @param messages Message templates
 #' @param content Content generation templates
 #' @param config Application configuration (optional, uses defaults)
 #' @return Survey class instance
 #' @export
-Survey <- function(chat, questions, messages, content, config = default_config()) {
-  # Initialize database connection
-  if (!file.exists(config$db_path)) {
-    db$init_database(config$db_path, eval(config$db_driver))
-  }
-  con <- db$connect(config$db_path, eval(config$db_driver))
+Survey <- function(chat, con, questions, messages, content,
+                   config = default_config()) {
+  db$init_database(con, quiet = TRUE)
 
   self <- list(
     # State
@@ -38,14 +36,24 @@ Survey <- function(chat, questions, messages, content, config = default_config()
     retry_count = 0,
     session_id = NULL,
     processing = FALSE,
+    session_start_time = NULL,
     question_start_time = NULL
   )
 
   # Initialize database session and return welcome message
   self$init <- function() {
     self$session_id <<- db$start_session(self$con, version = self$config$version)
+    self$session_start_time <<- Sys.time()
     self$question_start_time <<- Sys.time()
     self$messages$welcome
+  }
+
+  # Seconds since a start time, or NULL if the clock was never started
+  elapsed <- function(since) {
+    if (is.null(since)) {
+      return(NULL)
+    }
+    as.integer(difftime(Sys.time(), since, units = "secs"))
   }
 
   # Get first question text
@@ -61,12 +69,10 @@ Survey <- function(chat, questions, messages, content, config = default_config()
     )
   }
 
-  # Cleanup database connection
+  # Release the survey's hold on the connection. The caller opened it and is
+  # responsible for closing it, so this only drops the reference.
   self$cleanup <- function() {
-    if (!is.null(self$con)) {
-      db$disconnect(self$con)
-      self$con <<- NULL
-    }
+    self$con <<- NULL
   }
 
   # Process user input and return message to send
@@ -94,11 +100,7 @@ Survey <- function(chat, questions, messages, content, config = default_config()
     }
 
     # Calculate question duration
-    question_duration <- if (!is.null(self$question_start_time)) {
-      as.integer(difftime(Sys.time(), self$question_start_time, units = "secs"))
-    } else {
-      NULL
-    }
+    question_duration <- elapsed(self$question_start_time)
 
     # Save to database
     db$save_response(
@@ -115,7 +117,11 @@ Survey <- function(chat, questions, messages, content, config = default_config()
     )
 
     # Update session duration
-    db$update_session_duration(self$con, self$session_id)
+    db$update_session_duration(
+      self$con,
+      self$session_id,
+      elapsed(self$session_start_time)
+    )
 
     # Check if retry needed
     if (!answered_clearly && self$retry_count < self$config$tries) {
@@ -139,7 +145,11 @@ Survey <- function(chat, questions, messages, content, config = default_config()
 
     # Check if survey complete
     if (self$q_num > length(self$questions)) {
-      db$complete_session(self$con, self$session_id)
+      db$complete_session(
+        self$con,
+        self$session_id,
+        elapsed(self$session_start_time)
+      )
       completion_message <- interpolate(self$messages$completion, self$responses)
       self$processing <<- FALSE
       return(list(message = completion_message, complete = TRUE))
@@ -157,7 +167,11 @@ Survey <- function(chat, questions, messages, content, config = default_config()
       self$question_start_time <<- Sys.time()
 
       if (self$q_num > length(self$questions)) {
-        db$complete_session(self$con, self$session_id)
+        db$complete_session(
+          self$con,
+          self$session_id,
+          elapsed(self$session_start_time)
+        )
         completion_message <- interpolate(self$messages$completion, self$responses)
         self$processing <<- FALSE
         return(list(message = completion_message, complete = TRUE))

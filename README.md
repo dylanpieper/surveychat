@@ -18,7 +18,7 @@ The demo collects the ice cream preferences of the user. The files are modular, 
 -   **LLM extraction** with structured schemas that validate and retry unclear answers
 -   **Adaptive questions** that the LLM writes from the last answer of the user
 -   **Generated content** woven into a fixed question
--   **SQL storage** of raw and extracted answers, retry counts, and timings (SQLite by default)
+-   **SQL storage** of raw and extracted answers, retry counts, and timings on any DBI driver
 -   **Chat UI** with simulated typing, a progress cue, and a closing message
 
 ## Programming Patterns
@@ -96,11 +96,47 @@ The application supplies `{name}`, `{ice_cream}`, and `{why_favorite}` from the 
 
 If the generation fails, the application skips the adaptive question and continues with the next fixed question.
 
+### Portable SQL
+
+`app.R` opens the connection and passes it to `chat_survey()`. The application never opens one of its own, so every argument that a driver needs stays in one place:
+
+``` r
+con <- dbConnect(RSQLite::SQLite(), "survey.db")
+onStop(\() dbDisconnect(con))
+
+# Or any other driver:
+#   dbConnect(duckdb::duckdb(), "survey.duckdb")
+#   dbConnect(RPostgres::Postgres(), host = "localhost", dbname = "survey")
+```
+
+`R/db.R` builds every statement from DBI primitives, thus the same code runs on each backend. Three rules keep it portable:
+
+-   Identifiers and values go through `dbQuoteIdentifier()` and `dbQuoteLiteral()`. The application does not write `?` or `$1` placeholders, because the syntax of a placeholder is different on each driver.
+-   The application computes the durations in R. It does not call a SQL date function, because `julianday()`, `EXTRACT`, and `TIMESTAMPDIFF` are different on each backend.
+-   The application creates a table only if the table is absent, therefore it does not need `CREATE INDEX IF NOT EXISTS`, which MySQL does not have.
+
+`R/dialect.R` holds what is left. A driver is one entry, and the application matches the entry on the class of the connection:
+
+``` r
+duckdb_connection = list(
+  pre_ddl = \(table, column) paste0("CREATE SEQUENCE IF NOT EXISTS seq_", table),
+  serial_pk = \(table, column) {
+    paste0(column, " INTEGER PRIMARY KEY DEFAULT nextval('seq_", table, "')")
+  },
+  foreign_keys = FALSE,
+  returning = TRUE,
+  last_id = \(table, column) paste0("SELECT currval('seq_", table, "') AS id")
+)
+```
+
+An entry answers four questions: how the driver declares an auto-incrementing key, whether the driver accepts a foreign key, whether the driver has `INSERT ... RETURNING`, and how the driver reports the last generated id. A driver without an entry gets the ANSI defaults. The application tries `RETURNING`, and if the driver rejects it, the application puts the insert and the id query in one transaction instead.
+
+The repository has entries for SQLite, DuckDB, Postgres, and MySQL or MariaDB. To support another backend, add an entry.
+
 ### Configuration
 
-`default_config()` holds all of the parameters:
+`default_config()` holds the rest of the parameters:
 
--   `db_path` and `db_driver`: The database. SQLite is the default, but you can use a different driver.
 -   `tries`: The maximum number of retries for an unclear answer.
 -   `character_delay` and `delay_variance`: The speed of the simulated typing. Use `character_delay = 0` for no delay.
 -   `response_delay`: The delay before the bot starts a message.
@@ -108,8 +144,8 @@ If the generation fails, the application skips the adaptive question and continu
 
 ``` r
 chat_survey(
-  input, output, session, chat, questions, messages, content,
-  config = default_config(db_path = "prod.db", tries = 3, character_delay = 0)
+  input, output, session, chat, con, questions, messages, content,
+  config = default_config(tries = 3, character_delay = 0)
 )
 ```
 
@@ -120,6 +156,8 @@ The table `sessions` has one record for each user. The record has the times of t
 The table `responses` has one record for each answer. Each record refers to a session and includes the `question_id`, the `question_order`, the `question_text` that the application showed, the `input_raw`, the `input_extracted`, the flag `answered_clearly`, the `retry_attempt`, and the `question_duration_seconds`. The text of an adaptive question is different for each user, thus the application keeps it with the answer.
 
 The application keeps the raw input and the extracted input. Therefore, you can examine the quality of the extraction after the survey. The indexes cover the queries by session, by question, and by order.
+
+The application creates the schema on the connection at the start of a session, and it leaves an existing schema alone. Thus you can also create the tables yourself with `db$init_database(con)`.
 
 ``` r
 source("analyze.R")
