@@ -15,15 +15,11 @@ The demo collects the ice cream preferences of the user. The files are modular, 
 
 ## Key Features
 
--   **LLM data extraction** with structured schemas and validation
+-   **LLM extraction** with structured schemas that validate and retry unclear answers
 -   **Adaptive questions** that the LLM writes from the last answer of the user
--   **Generated content** before a fixed question
--   **Automatic retries** for unclear answers
--   **Simulated typing** that shows one character at a time
--   **Progress cue** in the header that tracks the current question
--   **Retired input** when the survey ends, see a closing message
--   **SQL database** with the tables "sessions" and "responses" (SQLite by default)
--   **Response data** that includes the retry counts and the duration of each question
+-   **Generated content** woven into a fixed question
+-   **SQL storage** of raw and extracted answers, retry counts, and timings (SQLite by default)
+-   **Chat UI** with simulated typing, a progress cue, and a closing message
 
 ## Programming Patterns
 
