@@ -145,7 +145,7 @@ questions <- list(
 # Setup chat ----
 # Swap in any ellmer chat function to use a different provider
 chat <- chat_claude(
-  model = "claude-haiku-4-5-20251001",
+  model = "claude-opus-5-5",
   echo = "none"
 )
 
