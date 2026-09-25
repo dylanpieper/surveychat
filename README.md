@@ -1,6 +1,6 @@
-# surveybot
+# surveychat
 
-surveybot collects data in a conversation with [shinychat](https://posit-dev.github.io/shinychat/). The user answers structured questions in a natural dialogue. At the same time, the LLM extracts the data, generates content, and asks adaptive questions.
+surveychat collects data in a conversation with [shinychat](https://posit-dev.github.io/shinychat/). The user answers structured questions in a natural dialogue. At the same time, the LLM extracts the data, generates content, and asks adaptive questions.
 
 ## Usage 🍦✨
 
@@ -11,7 +11,7 @@ shiny::runApp("app.R")
 
 Set an API key for your LLM provider. The demo uses `ellmer::chat_claude()`, which reads `ANTHROPIC_API_KEY`. To use a different provider, swap in another `ellmer` chat function in `app.R`.
 
-The demo collects the ice cream preferences of the user. The files are modular, and you can make your own surveybot from them.
+The demo collects the ice cream preferences of the user. The files are modular, and you can make your own surveychat from them.
 
 ## Key Features
 
@@ -25,7 +25,7 @@ The demo collects the ice cream preferences of the user. The files are modular, 
 
 ### Declarative Surveys
 
-`app.R` contains data only. A survey has three lists: `questions`, `messages`, and `content`. The application sends these lists to `chat_survey()`. To make a different surveybot, modify the lists.
+`app.R` contains data only. A survey has three lists: `questions`, `messages`, and `content`. The application sends these lists to `chat_survey()`. To make a different surveychat, modify the lists.
 
 ``` r
 list(

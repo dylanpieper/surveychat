@@ -154,7 +154,7 @@ con <- dbConnect(RSQLite::SQLite(), "survey.db")
 onStop(\() dbDisconnect(con))
 
 # UI ----
-ui <- survey_ui("SurveyBot")
+ui <- survey_ui("SurveyChat")
 
 # Server ----
 server <- \(input, output, session) {

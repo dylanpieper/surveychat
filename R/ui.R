@@ -38,7 +38,7 @@ styles <- "
 #' @param footer_id Output ID of the completion footer
 #' @return A Shiny UI definition
 #' @export
-survey_ui <- \(title = "SurveyBot",
+survey_ui <- \(title = "SurveyChat",
                chat_id = "chat",
                progress_id = "survey_progress",
                footer_id = "survey_footer") {
