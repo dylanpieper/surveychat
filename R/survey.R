@@ -42,11 +42,14 @@ SurveySession <- R6::R6Class(
       if (private$busy) {
         return(list(message = NULL, complete = FALSE))
       }
+      if (private$q_num > length(private$questions)) {
+        return(list(message = NULL, complete = TRUE))
+      }
       private$busy <- TRUE
       on.exit(private$busy <- FALSE)
 
-      # A failed LLM call or database write asks for the reply again and keeps
-      # the session alive; it does not count as a retry
+      # Only a failed extraction or response insert asks for the reply again;
+      # nothing has changed yet, so the retry is safe and is not counted
       question <- private$questions[[private$q_num]]
       extracted <- tryCatch(
         {
@@ -70,11 +73,16 @@ SurveySession <- R6::R6Class(
       if (is.null(extracted)) {
         return(list(message = private$messages$retry, complete = FALSE))
       }
+      private$soft(update_session_duration(
+        private$con,
+        private$session_id,
+        elapsed(private$session_start)
+      ))
       valid <- isTRUE(extracted$valid)
 
       if (!valid && private$retry_count < private$config$tries) {
         private$retry_count <- private$retry_count + 1
-        increment_retry(private$con, private$session_id)
+        private$soft(increment_retry(private$con, private$session_id))
         return(list(message = private$messages$retry, complete = FALSE))
       }
 
@@ -118,11 +126,21 @@ SurveySession <- R6::R6Class(
         retry_attempt = private$retry_count,
         question_duration_seconds = elapsed(private$question_start)
       )
-      update_session_duration(
-        private$con,
-        private$session_id,
-        elapsed(private$session_start)
+    },
+
+    # Runs a bookkeeping write. A failure is logged and the survey continues,
+    # so the engine never stops between two states.
+    soft = function(write) {
+      tryCatch(
+        write,
+        error = function(err) {
+          cli::cli_warn(
+            "A database update failed; the survey continues.",
+            parent = err
+          )
+        }
       )
+      invisible(NULL)
     },
 
     # Moves to the next question that renders. An adaptive question whose
@@ -184,11 +202,11 @@ SurveySession <- R6::R6Class(
     },
 
     finish = function() {
-      complete_session(
+      private$soft(complete_session(
         private$con,
         private$session_id,
         elapsed(private$session_start)
-      )
+      ))
       list(
         message = interpolate(
           private$messages$completion,

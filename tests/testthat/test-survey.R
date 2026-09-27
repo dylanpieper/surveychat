@@ -129,3 +129,32 @@ test_that("a failed extraction asks again and does not count as a retry", {
   expect_match(moved_on, "flavor")
   expect_equal(responses_of(con)$retry_attempt, 0)
 })
+
+test_that("a failed bookkeeping write does not stop or repeat the survey", {
+  con <- local_sqlite()
+  chat <- fake_chat(
+    list(name = "Ana", valid = TRUE),
+    list(content = "x"),
+    list(flavor = "mint", valid = TRUE),
+    list(content = "Why mint?"),
+    list(why = "fresh", valid = TRUE)
+  )
+  engine <- SurveySession$new(test_spec(), chat, con)
+  engine$start()
+  engine$first_question()
+  local_mocked_bindings(
+    update_session_duration = \(...) stop("database busy"),
+    complete_session = \(...) stop("database busy")
+  )
+
+  suppressWarnings({
+    engine$process_input("Ana")
+    engine$process_input("mint")
+    last <- engine$process_input("fresh")
+  })
+  after <- engine$process_input("again")
+
+  expect_equal(last, list(message = "Bye Ana", complete = TRUE))
+  expect_null(after$message)
+  expect_equal(responses_of(con)$question_id, c("name", "flavor", "why"))
+})
