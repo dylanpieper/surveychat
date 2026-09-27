@@ -236,12 +236,12 @@ init_database <- function(con, quiet = FALSE) {
       "question_id TEXT NOT NULL",
       "question_order INTEGER NOT NULL",
       "question_text TEXT",
-      "input_raw TEXT NOT NULL",
-      "input_extracted TEXT",
+      "answer_raw TEXT NOT NULL",
+      "answer_extracted TEXT",
       "valid BOOLEAN",
       "responded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP",
       "retry_attempt INTEGER DEFAULT 0",
-      "question_duration_seconds INTEGER",
+      "duration_seconds INTEGER",
       if (d$foreign_keys) {
         paste0(
           "FOREIGN KEY (session_id) REFERENCES sessions(session_id)",
@@ -274,11 +274,11 @@ check_response_columns <- function(con, call = rlang::caller_env()) {
     "question_id",
     "question_order",
     "question_text",
-    "input_raw",
-    "input_extracted",
+    "answer_raw",
+    "answer_extracted",
     "valid",
     "retry_attempt",
-    "question_duration_seconds"
+    "duration_seconds"
   )
   fields <- DBI::dbListFields(con, "responses")
   missing <- setdiff(expected, fields)
@@ -320,11 +320,11 @@ save_response <- function(
   question_id,
   question_order,
   question_text,
-  input_raw,
-  input_extracted = NULL,
+  answer_raw,
+  answer_extracted = NULL,
   valid = NULL,
   retry_attempt = 0,
-  question_duration_seconds = NULL
+  duration_seconds = NULL
 ) {
   con <- checkout(con)
   insert_row(
@@ -335,11 +335,11 @@ save_response <- function(
       question_id = as.character(question_id),
       question_order = as.integer(question_order),
       question_text = as.character(question_text),
-      input_raw = as.character(input_raw),
-      input_extracted = as.character(input_extracted),
+      answer_raw = as.character(answer_raw),
+      answer_extracted = as.character(answer_extracted),
       valid = as.logical(valid),
       retry_attempt = as.integer(retry_attempt),
-      question_duration_seconds = as.integer(question_duration_seconds)
+      duration_seconds = as.integer(duration_seconds)
     )
   )
 }

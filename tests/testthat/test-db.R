@@ -34,7 +34,7 @@ for (backend in names(backends)) {
       con,
       "SELECT * FROM responses ORDER BY question_order"
     )
-    expect_equal(responses$input_extracted, c("Ana", NA))
+    expect_equal(responses$answer_extracted, c("Ana", NA))
     expect_equal(responses$question_text, c("Name?", NA))
     expect_equal(as.logical(responses$valid), c(TRUE, NA))
   })

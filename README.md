@@ -100,9 +100,9 @@ Use `set_messages()` to change the welcome, retry, and closing messages, and `se
 | Group | Columns |
 |-----------------|-------------------------------------------------------|
 | Keys | `response_id`, `session_id`, `question_id`, `question_order` |
-| Exchange | `question_text`, `input_raw`, `input_extracted` |
+| Exchange | `question_text`, `answer_raw`, `answer_extracted` |
 | Quality | `valid`, `retry_attempt` |
-| Timing | `responded_at`, `question_duration_seconds` |
+| Timing | `responded_at`, `duration_seconds` |
 
 -   **Audit:** the raw and the extracted input stay side by side, so you can examine the quality of the extraction after the survey.
 -   **Indexes:** they cover the queries by session, by question, and by order.
