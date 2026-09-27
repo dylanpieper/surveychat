@@ -1,4 +1,4 @@
-# surveychat <img src="inst/images/surveychat.png" align="right" height="139" alt="A round stone tablet with carved lips in the center, surrounded by carved checkboxes and radio buttons."/>
+# surveychat <a href="https://dylanpieper.github.io/surveychat/"><img src="man/figures/logo.png" align="right" height="139" alt="A round stone tablet with carved lips in the center, surrounded by carved checkboxes and radio buttons."/></a>
 
 surveychat collects data in a conversation with [shinychat](https://posit-dev.github.io/shinychat/). The user answers structured questions in a natural dialogue. At the same time, the LLM extracts the data, generates content, and asks adaptive questions.
 

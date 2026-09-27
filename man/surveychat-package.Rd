@@ -6,6 +6,8 @@
 \alias{surveychat-package}
 \title{surveychat: Conversational Surveys with LLM Extraction}
 \description{
+\if{html}{\figure{logo.png}{options: style='float: right' alt='logo' width='120'}}
+
 Collect survey data in a chat. The user answers structured questions in a natural dialogue, and an LLM extracts and validates each answer, generates content, and asks adaptive questions. Answers are stored on any DBI backend.
 }
 \seealso{
