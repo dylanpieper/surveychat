@@ -82,7 +82,7 @@
 <div class="section level2">
 <h2 id="example-icecreamsparkles">Example 🍦✨<a class="anchor" aria-label="anchor" href="#example-icecreamsparkles"></a>
 </h2>
-<p>The package includes a demo that collects the ice cream preferences of the user. The demo uses <code><a href="https://ellmer.tidyverse.org/reference/chat_anthropic.html" class="external-link">ellmer::chat_claude()</a></code>, which reads <code>ANTHROPIC_API_KEY</code>, and it writes the answers to <code>survey.db</code> in the working directory. Put the key in <code>~/.Renviron</code> (<code>usethis::edit_r_environ()</code>) and restart R. Without a key, the survey is locked.</p>
+<p>The package includes a demo that collects the ice cream preferences of the user. The demo uses <code><a href="https://ellmer.tidyverse.org/reference/chat_anthropic.html" class="external-link">ellmer::chat_claude()</a></code>, which reads <code>ANTHROPIC_API_KEY</code>, and it writes the answers to <code>survey.db</code> in the working directory. Put the key in <code>~/.Renviron</code> (<code>usethis::edit_r_environ()</code>) and restart R.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">surveychat</span><span class="fu">::</span><span class="fu"><a href="reference/run_example.html">run_example</a></span><span class="op">(</span><span class="st">"icecream"</span><span class="op">)</span></span></code></pre></div>
 <p>The source of the demo is in <a href="inst/examples/icecream/app.R"><code>inst/examples/icecream/app.R</code></a>. Copy it to start your own survey.</p>
@@ -96,9 +96,9 @@
 <li>
 <strong>Adaptive questions</strong> that the LLM writes from the earlier answers of the user</li>
 <li>
-<strong>Generated content</strong> before a fixed question</li>
+<strong>Generated content</strong>, such as a fun fact, before a question</li>
 <li>
-<strong>SQL storage</strong> of raw and extracted answers, retry counts, and timings on any DBI driver or pool</li>
+<strong>SQL storage</strong> of raw and extracted answers, retry counts, and timings</li>
 <li>
 <strong>Chat UI</strong> with simulated typing, a progress cue, and a closing message</li>
 </ul>
@@ -126,7 +126,11 @@
 <span>  <span class="fu"><a href="reference/add_question.html">add_question</a></span><span class="op">(</span></span>
 <span>    <span class="st">"why"</span>,</span>
 <span>    text <span class="op">=</span> <span class="fu"><a href="reference/prompt_llm.html">prompt_llm</a></span><span class="op">(</span><span class="st">"{name} likes {flavor}. Ask why, in one short question."</span><span class="op">)</span>,</span>
-<span>    answer <span class="op">=</span> <span class="fu"><a href="https://ellmer.tidyverse.org/reference/type_boolean.html" class="external-link">type_string</a></span><span class="op">(</span><span class="st">"The reason"</span><span class="op">)</span></span>
+<span>    answer <span class="op">=</span> <span class="fu"><a href="https://ellmer.tidyverse.org/reference/type_boolean.html" class="external-link">type_string</a></span><span class="op">(</span><span class="st">"The reason"</span><span class="op">)</span>,</span>
+<span>    intro <span class="op">=</span> <span class="fu"><a href="reference/prompt_llm.html">prompt_llm</a></span><span class="op">(</span></span>
+<span>      <span class="st">"Share a short fun fact about {flavor} ice cream."</span>,</span>
+<span>      format <span class="op">=</span> <span class="st">"Oh, {flavor}! {content}"</span></span>
+<span>    <span class="op">)</span></span>
 <span>  <span class="op">)</span></span></code></pre></div>
 <p>Then run it in Shiny with any ellmer chat and any DBI connection:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
@@ -154,7 +158,7 @@
 <tbody>
 <tr>
 <td><code>text</code></td>
-<td>The question. <code>{id}</code> fills in an earlier answer. With <code><a href="reference/prompt_llm.html">prompt_llm()</a></code>, the LLM writes the question.</td>
+<td>The question. <code>{id}</code> fills in an earlier answer. With <code><a href="reference/prompt_llm.html">prompt_llm()</a></code>, the LLM writes an adaptive question.</td>
 </tr>
 <tr>
 <td><code>answer</code></td>
@@ -166,7 +170,7 @@
 </tr>
 <tr>
 <td><code>intro</code></td>
-<td>A <code><a href="reference/prompt_llm.html">prompt_llm()</a></code> whose output comes before the question, such as a fun fact.</td>
+<td>A <code><a href="reference/prompt_llm.html">prompt_llm()</a></code> whose output comes before the question, such as a fun fact. <code>format</code> places the output as <code>{content}</code>. The intro adds to the question and does not replace it.</td>
 </tr>
 </tbody>
 </table>
@@ -238,7 +242,7 @@
 <tr>
 <td>Exchange</td>
 <td>
-<code>question_text</code>, <code>input_raw</code>, <code>input_extracted</code>
+<code>question_text</code>, <code>answer_raw</code>, <code>answer_extracted</code>
 </td>
 </tr>
 <tr>
@@ -250,14 +254,14 @@
 <tr>
 <td>Timing</td>
 <td>
-<code>responded_at</code>, <code>question_duration_seconds</code>
+<code>responded_at</code>, <code>duration_seconds</code>
 </td>
 </tr>
 </tbody>
 </table>
 <ul>
 <li>
-<strong>Audit:</strong> the raw and the extracted input stay side by side, so you can examine the quality of the extraction after the survey.</li>
+<strong>Audit:</strong> the raw and the extracted answers stay side by side, so you can examine the quality of the extraction after the survey.</li>
 <li>
 <strong>Indexes:</strong> they cover the queries by session, by question, and by order.</li>
 <li>
