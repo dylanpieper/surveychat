@@ -29,11 +29,11 @@ Imports:
     utils
 Suggests:
     duckdb,
-    pool,
+    pool (>= 1.0.0),
     RMariaDB,
     RPostgres,
     RSQLite,
-    testthat (>= 3.0.0),
+    testthat (>= 3.2.0),
     withr
 Config/testthat/edition: 3
 Encoding: UTF-8

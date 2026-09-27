@@ -48,3 +48,31 @@ test_that("dialect_for() falls back to ANSI for an unknown driver", {
   expect_true(is.na(d$returning))
   expect_equal(dialect_for(local_sqlite())$returning, TRUE)
 })
+
+test_that("inserts get ids without RETURNING and when RETURNING is unknown", {
+  sqlite <- dialect_for(local_sqlite())
+
+  for (returning in list(FALSE, NA)) {
+    con <- local_sqlite()
+    init_database(con, quiet = TRUE)
+    local_mocked_bindings(
+      dialect_for = \(con) {
+        utils::modifyList(sqlite, list(returning = returning))
+      }
+    )
+
+    ids <- c(start_session(con), start_session(con))
+    expect_equal(ids, c(1, 2))
+  }
+})
+
+test_that("init_database() rejects a responses table from before 0.1.0", {
+  con <- local_sqlite()
+  init_database(con, quiet = TRUE)
+  DBI::dbExecute(
+    con,
+    "ALTER TABLE responses RENAME COLUMN valid TO answered_clearly"
+  )
+
+  expect_snapshot(init_database(con), error = TRUE)
+})

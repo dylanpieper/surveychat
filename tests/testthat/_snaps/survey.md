@@ -18,3 +18,13 @@
       Caused by error in `generate_content()`:
       ! The LLM returned no text.
 
+# a failed extraction asks again and does not count as a retry
+
+    Code
+      failed <- engine$process_input("Ana")
+    Condition
+      Warning:
+      Could not process the reply to question "name".
+      Caused by error:
+      ! rate limited
+

@@ -57,8 +57,15 @@ test_that("add_question() rejects bad input", {
     add_question(spec, "name", text = "A?", answer = answer)
     add_question(spec, "my id", text = "A?", answer = answer)
     add_question(spec, "content", text = "A?", answer = answer)
+    add_question(spec, ".description", text = "A?", answer = answer)
     add_question(spec, "a", text = 1, answer = answer)
     add_question(spec, "a", text = "A?", answer = "string")
+    add_question(
+      spec,
+      "a",
+      text = "A?",
+      answer = ellmer::type_array(ellmer::type_string())
+    )
     add_question(
       spec,
       "a",
@@ -107,7 +114,10 @@ test_that("set_messages() and set_config() change only the named fields", {
     set_config(tries = 5)
 
   expect_equal(changed$messages$welcome, "Hey")
-  expect_equal(changed$messages[-1], spec$messages[-1])
+  expect_equal(
+    changed$messages[names(changed$messages) != "welcome"],
+    spec$messages[names(spec$messages) != "welcome"]
+  )
   expect_equal(changed$config$tries, 5)
   expect_equal(
     changed$config[names(changed$config) != "tries"],

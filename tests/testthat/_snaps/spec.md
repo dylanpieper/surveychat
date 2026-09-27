@@ -15,12 +15,17 @@
       add_question(spec, "my id", text = "A?", answer = answer)
     Condition
       Error in `add_question()`:
-      ! `id` must be a syntactic name, not "my id".
+      ! `id` must be a syntactic name that does not start with a dot, not "my id".
     Code
       add_question(spec, "content", text = "A?", answer = answer)
     Condition
       Error in `add_question()`:
       ! `id` cannot be "content"; the package uses that name.
+    Code
+      add_question(spec, ".description", text = "A?", answer = answer)
+    Condition
+      Error in `add_question()`:
+      ! `id` must be a syntactic name that does not start with a dot, not ".description".
     Code
       add_question(spec, "a", text = 1, answer = answer)
     Condition
@@ -30,7 +35,14 @@
       add_question(spec, "a", text = "A?", answer = "string")
     Condition
       Error in `add_question()`:
-      ! `answer` must be an ellmer type such as `ellmer::type_string()`, not a string.
+      ! `answer` must be a scalar ellmer type, not a string.
+      i Use `ellmer::type_string()`, `ellmer::type_number()`, `ellmer::type_integer()`, `ellmer::type_boolean()`, or `ellmer::type_enum()`.
+    Code
+      add_question(spec, "a", text = "A?", answer = ellmer::type_array(ellmer::type_string()))
+    Condition
+      Error in `add_question()`:
+      ! `answer` must be a scalar ellmer type, not an <ellmer::TypeArray> object.
+      i Use `ellmer::type_string()`, `ellmer::type_number()`, `ellmer::type_integer()`, `ellmer::type_boolean()`, or `ellmer::type_enum()`.
     Code
       add_question(spec, "a", text = "A?", answer = answer, intro = prompt_llm("x"))
     Condition

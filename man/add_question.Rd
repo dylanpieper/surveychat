@@ -15,7 +15,7 @@ add_question(spec, id, text, answer, valid = NULL, intro = NULL)
 \item{text}{The question as a string, or a \code{\link[=prompt_llm]{prompt_llm()}} for an adaptive
 question that the LLM writes from the earlier answers.}
 
-\item{answer}{An ellmer type, such as \code{\link[ellmer:type_boolean]{ellmer::type_string()}}, that
+\item{answer}{A scalar ellmer type, such as \code{\link[ellmer:type_boolean]{ellmer::type_string()}}, that
 describes the answer to extract.}
 
 \item{valid}{The condition for a valid answer, written without TRUE or

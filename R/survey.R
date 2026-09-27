@@ -45,15 +45,32 @@ SurveySession <- R6::R6Class(
       private$busy <- TRUE
       on.exit(private$busy <- FALSE)
 
+      # A failed LLM call or database write asks for the reply again and keeps
+      # the session alive; it does not count as a retry
       question <- private$questions[[private$q_num]]
-      extracted <- extract_response(
-        private$chat,
-        private$shown_text,
-        user_input,
-        question$schema
+      extracted <- tryCatch(
+        {
+          extracted <- extract_response(
+            private$chat,
+            private$shown_text,
+            user_input,
+            question$schema
+          )
+          private$record(question, user_input, extracted)
+          extracted
+        },
+        error = function(err) {
+          cli::cli_warn(
+            "Could not process the reply to question {.val {question$id}}.",
+            parent = err
+          )
+          NULL
+        }
       )
+      if (is.null(extracted)) {
+        return(list(message = private$messages$retry, complete = FALSE))
+      }
       valid <- isTRUE(extracted$valid)
-      private$record(question, user_input, extracted, valid)
 
       if (!valid && private$retry_count < private$config$tries) {
         private$retry_count <- private$retry_count + 1
@@ -88,7 +105,7 @@ SurveySession <- R6::R6Class(
     retry_count = 0,
     busy = FALSE,
 
-    record = function(question, user_input, extracted, valid) {
+    record = function(question, user_input, extracted) {
       save_response(
         private$con,
         session_id = private$session_id,
@@ -97,7 +114,7 @@ SurveySession <- R6::R6Class(
         question_text = private$shown_text,
         input_raw = user_input,
         input_extracted = extracted[[question$id]],
-        valid = valid,
+        valid = isTRUE(extracted$valid),
         retry_attempt = private$retry_count,
         question_duration_seconds = elapsed(private$question_start)
       )

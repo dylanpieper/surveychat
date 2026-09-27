@@ -53,7 +53,7 @@ survey_spec <- function(version = "1.0") {
 #'   `question_id` in the database. It must be a syntactic name.
 #' @param text The question as a string, or a [prompt_llm()] for an adaptive
 #'   question that the LLM writes from the earlier answers.
-#' @param answer An ellmer type, such as [ellmer::type_string()], that
+#' @param answer A scalar ellmer type, such as [ellmer::type_string()], that
 #'   describes the answer to extract.
 #' @param valid The condition for a valid answer, written without TRUE or
 #'   FALSE, such as `"they mentioned any flavor"`. If `NULL`, the question uses
@@ -100,10 +100,15 @@ add_question <- function(
   if (!rlang::is_string(text)) {
     check_prompt(text)
   }
-  if (!inherits(answer, "ellmer::Type")) {
-    cli::cli_abort(
-      "{.arg answer} must be an ellmer type such as {.fn ellmer::type_string}, not {.obj_type_friendly {answer}}."
-    )
+  # The database stores one value for each answer, so only scalar types
+  if (
+    !inherits(answer, "ellmer::TypeBasic") &&
+      !inherits(answer, "ellmer::TypeEnum")
+  ) {
+    cli::cli_abort(c(
+      "{.arg answer} must be a scalar ellmer type, not {.obj_type_friendly {answer}}.",
+      "i" = "Use {.fn ellmer::type_string}, {.fn ellmer::type_number}, {.fn ellmer::type_integer}, {.fn ellmer::type_boolean}, or {.fn ellmer::type_enum}."
+    ))
   }
   own_valid <- !is.null(valid)
   valid <- valid %||% spec$config$valid
@@ -335,9 +340,10 @@ reserved_ids <- c("valid", "content")
 
 check_id <- function(id, known, call = rlang::caller_env()) {
   check_string(id, call = call)
-  if (make.names(id) != id) {
+  # A leading dot would bind to a formal argument of ellmer::type_object()
+  if (make.names(id) != id || startsWith(id, ".")) {
     cli::cli_abort(
-      "{.arg id} must be a syntactic name, not {.val {id}}.",
+      "{.arg id} must be a syntactic name that does not start with a dot, not {.val {id}}.",
       call = call
     )
   }

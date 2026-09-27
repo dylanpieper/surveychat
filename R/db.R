@@ -176,7 +176,11 @@ create_table <- function(
 # connection: the dialect lookup, a transaction, and the id lookup after it.
 checkout <- function(con, env = parent.frame()) {
   if (inherits(con, "Pool")) {
-    rlang::check_installed("pool", "to use a connection pool.")
+    rlang::check_installed(
+      "pool",
+      "to use a connection pool.",
+      version = "1.0.0"
+    )
     return(pool::localCheckout(con, env))
   }
   con
@@ -253,11 +257,45 @@ init_database <- function(con, quiet = FALSE) {
     pre_ddl = d$pre_ddl("responses", "response_id")
   )
 
+  check_response_columns(con)
+
   if (created && !quiet) {
     cli::cli_alert_success("Survey schema created on {.val {class(con)[1]}}")
   }
 
   invisible(target)
+}
+
+# An existing `responses` table must have every column that save_response()
+# writes. Otherwise the first insert would fail partway through a survey.
+check_response_columns <- function(con, call = rlang::caller_env()) {
+  expected <- c(
+    "session_id",
+    "question_id",
+    "question_order",
+    "question_text",
+    "input_raw",
+    "input_extracted",
+    "valid",
+    "retry_attempt",
+    "question_duration_seconds"
+  )
+  fields <- DBI::dbListFields(con, "responses")
+  missing <- setdiff(expected, fields)
+  if (length(missing) == 0) {
+    return(invisible(con))
+  }
+  cli::cli_abort(
+    c(
+      "The {.field responses} table has no {cli::qty(missing)}column{?s} {.field {missing}}.",
+      "i" = if ("answered_clearly" %in% fields) {
+        "This database is from before surveychat 0.1.0. Rename {.field answered_clearly} to {.field valid}, or use a new database."
+      } else {
+        "Use a new database, or add the missing columns."
+      }
+    ),
+    call = call
+  )
 }
 
 # Row operations ----

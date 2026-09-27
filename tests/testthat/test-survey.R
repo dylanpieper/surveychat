@@ -107,3 +107,25 @@ test_that("a failed adaptive question is skipped", {
   expect_snapshot(result <- engine$process_input("mint"))
   expect_equal(result, list(message = "Bye Ana", complete = TRUE))
 })
+
+test_that("a failed extraction asks again and does not count as a retry", {
+  con <- local_sqlite()
+  chat <- fake_chat(
+    simpleError("rate limited"),
+    list(name = "Ana", valid = TRUE),
+    list(content = "x")
+  )
+  engine <- SurveySession$new(test_spec(), chat, con)
+  engine$start()
+  engine$first_question()
+
+  expect_snapshot(failed <- engine$process_input("Ana"))
+  moved_on <- engine$process_input("Ana")$message
+
+  expect_equal(
+    failed,
+    list(message = test_spec()$messages$retry, complete = FALSE)
+  )
+  expect_match(moved_on, "flavor")
+  expect_equal(responses_of(con)$retry_attempt, 0)
+})

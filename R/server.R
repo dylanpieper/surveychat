@@ -97,7 +97,15 @@ survey_server <- function(id, survey, chat, con) {
       if (is.null(engine)) {
         return()
       }
-      result <- engine$process_input(input$chat_user_input)
+      # Last guard: any other error asks for the reply again, so the Shiny
+      # session stays alive
+      result <- tryCatch(
+        engine$process_input(input$chat_user_input),
+        error = function(err) {
+          cli::cli_warn("The survey could not handle a reply.", parent = err)
+          list(message = survey$messages$retry, complete = FALSE)
+        }
+      )
       if (is.null(result$message)) {
         return()
       }
