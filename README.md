@@ -10,7 +10,7 @@ pak::pak("dylanpieper/surveychat")
 
 ## Example 🍦✨
 
-The package includes a demo that collects the ice cream preferences of the user. The demo uses `ellmer::chat_claude()`, which reads `ANTHROPIC_API_KEY`, and it writes the answers to `survey.db` in the working directory. Put the key in `~/.Renviron` (`usethis::edit_r_environ()`) and restart R. Without a key, the survey is locked.
+The package includes a demo that collects the ice cream preferences of the user. The demo uses `ellmer::chat_claude()`, which reads `ANTHROPIC_API_KEY`, and it writes the answers to `survey.db` in the working directory. Put the key in `~/.Renviron` (`usethis::edit_r_environ()`) and restart R.
 
 ``` r
 surveychat::run_example("icecream")
@@ -22,8 +22,8 @@ The source of the demo is in [`inst/examples/icecream/app.R`](inst/examples/icec
 
 -   **LLM extraction** with structured schemas that validate and retry invalid answers
 -   **Adaptive questions** that the LLM writes from the earlier answers of the user
--   **Generated content** before a fixed question
--   **SQL storage** of raw and extracted answers, retry counts, and timings on any DBI driver or pool
+-   **Generated content**, such as a fun fact, before a question
+-   **SQL storage** of raw and extracted answers, retry counts, and timings
 -   **Chat UI** with simulated typing, a progress cue, and a closing message
 
 ## Usage
@@ -49,7 +49,11 @@ survey <- survey_spec() |>
   add_question(
     "why",
     text = prompt_llm("{name} likes {flavor}. Ask why, in one short question."),
-    answer = type_string("The reason")
+    answer = type_string("The reason"),
+    intro = prompt_llm(
+      "Share a short fun fact about {flavor} ice cream.",
+      format = "Oh, {flavor}! {content}"
+    )
   )
 ```
 
@@ -73,10 +77,10 @@ Each question has up to four parts:
 
 | Argument | Purpose |
 |------------|-------------------------------------------------------------|
-| `text` | The question. `{id}` fills in an earlier answer. With `prompt_llm()`, the LLM writes the question. |
+| `text` | The question. `{id}` fills in an earlier answer. With `prompt_llm()`, the LLM writes an adaptive question. |
 | `answer` | The ellmer type to extract. |
 | `valid` | A plain condition, such as `"they mentioned any flavor"`. An invalid answer is asked again, up to `tries` times. |
-| `intro` | A `prompt_llm()` whose output comes before the question, such as a fun fact. |
+| `intro` | A `prompt_llm()` whose output comes before the question, such as a fun fact. `format` places the output as `{content}`. The intro adds to the question and does not replace it. |
 
 Use `set_messages()` to change the welcome, retry, and closing messages, and `set_config()` to change the retries and the typing speed.
 
@@ -104,7 +108,7 @@ Use `set_messages()` to change the welcome, retry, and closing messages, and `se
 | Quality | `valid`, `retry_attempt` |
 | Timing | `responded_at`, `duration_seconds` |
 
--   **Audit:** the raw and the extracted input stay side by side, so you can examine the quality of the extraction after the survey.
+-   **Audit:** the raw and the extracted answers stay side by side, so you can examine the quality of the extraction after the survey.
 -   **Indexes:** they cover the queries by session, by question, and by order.
 -   **Setup:** the server makes the tables when a session starts and leaves existing tables alone. To make them before the first user arrives, call `init_database(con)`.
 
