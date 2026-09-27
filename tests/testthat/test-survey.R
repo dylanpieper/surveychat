@@ -147,9 +147,9 @@ test_that("a failed bookkeeping write does not stop or repeat the survey", {
     complete_session = \(...) stop("database busy")
   )
 
-  suppressWarnings({
-    engine$process_input("Ana")
-    engine$process_input("mint")
+  expect_snapshot({
+    invisible(engine$process_input("Ana"))
+    invisible(engine$process_input("mint"))
     last <- engine$process_input("fresh")
   })
   after <- engine$process_input("again")
@@ -157,4 +157,24 @@ test_that("a failed bookkeeping write does not stop or repeat the survey", {
   expect_equal(last, list(message = "Bye Ana", complete = TRUE))
   expect_null(after$message)
   expect_equal(responses_of(con)$question_id, c("name", "flavor", "why"))
+})
+
+test_that("a failed retry count still asks again and counts the retry", {
+  con <- local_sqlite()
+  chat <- fake_chat(
+    list(name = "??", valid = FALSE),
+    list(name = "Ana", valid = TRUE),
+    list(content = "x")
+  )
+  engine <- SurveySession$new(test_spec(), chat, con)
+  engine$start()
+  engine$first_question()
+  local_mocked_bindings(increment_retry = \(...) stop("database busy"))
+
+  expect_snapshot(retry <- engine$process_input("?"))
+  moved_on <- engine$process_input("Ana")$message
+
+  expect_equal(retry$message, test_spec()$messages$retry)
+  expect_match(moved_on, "flavor")
+  expect_equal(responses_of(con)$retry_attempt, c(0, 1))
 })

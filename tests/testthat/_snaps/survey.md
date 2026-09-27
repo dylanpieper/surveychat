@@ -28,3 +28,41 @@
       Caused by error:
       ! rate limited
 
+# a failed bookkeeping write does not stop or repeat the survey
+
+    Code
+      invisible(engine$process_input("Ana"))
+    Condition
+      Warning:
+      Could not update the session duration of session 1; the survey continues.
+      Caused by error in `update_session_duration()`:
+      ! database busy
+    Code
+      invisible(engine$process_input("mint"))
+    Condition
+      Warning:
+      Could not update the session duration of session 1; the survey continues.
+      Caused by error in `update_session_duration()`:
+      ! database busy
+    Code
+      last <- engine$process_input("fresh")
+    Condition
+      Warning:
+      Could not update the session duration of session 1; the survey continues.
+      Caused by error in `update_session_duration()`:
+      ! database busy
+      Warning:
+      Could not update the completion of session 1; the survey continues.
+      Caused by error in `complete_session()`:
+      ! database busy
+
+# a failed retry count still asks again and counts the retry
+
+    Code
+      retry <- engine$process_input("?")
+    Condition
+      Warning:
+      Could not update the retry count of session 1; the survey continues.
+      Caused by error in `increment_retry()`:
+      ! database busy
+

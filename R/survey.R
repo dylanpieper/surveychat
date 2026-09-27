@@ -3,7 +3,7 @@
 # The server makes one SurveySession for each Shiny session. It holds the
 # answers, writes each reply to the database, and returns the next message.
 # `process_input()` returns `list(message, complete)`; `message` is NULL while
-# an earlier reply is still in progress.
+# an earlier reply is still in progress or after the survey is complete.
 
 SurveySession <- R6::R6Class(
   "SurveySession",
@@ -73,16 +73,22 @@ SurveySession <- R6::R6Class(
       if (is.null(extracted)) {
         return(list(message = private$messages$retry, complete = FALSE))
       }
-      private$soft(update_session_duration(
-        private$con,
-        private$session_id,
-        elapsed(private$session_start)
-      ))
+      private$soft(
+        "the session duration",
+        update_session_duration(
+          private$con,
+          private$session_id,
+          elapsed(private$session_start)
+        )
+      )
       valid <- isTRUE(extracted$valid)
 
       if (!valid && private$retry_count < private$config$tries) {
         private$retry_count <- private$retry_count + 1
-        private$soft(increment_retry(private$con, private$session_id))
+        private$soft(
+          "the retry count",
+          increment_retry(private$con, private$session_id)
+        )
         return(list(message = private$messages$retry, complete = FALSE))
       }
 
@@ -130,12 +136,12 @@ SurveySession <- R6::R6Class(
 
     # Runs a bookkeeping write. A failure is logged and the survey continues,
     # so the engine never stops between two states.
-    soft = function(write) {
+    soft = function(what, write) {
       tryCatch(
         write,
         error = function(err) {
           cli::cli_warn(
-            "A database update failed; the survey continues.",
+            "Could not update {what} of session {private$session_id}; the survey continues.",
             parent = err
           )
         }
@@ -202,11 +208,14 @@ SurveySession <- R6::R6Class(
     },
 
     finish = function() {
-      private$soft(complete_session(
-        private$con,
-        private$session_id,
-        elapsed(private$session_start)
-      ))
+      private$soft(
+        "the completion",
+        complete_session(
+          private$con,
+          private$session_id,
+          elapsed(private$session_start)
+        )
+      )
       list(
         message = interpolate(
           private$messages$completion,
