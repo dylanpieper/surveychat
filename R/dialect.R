@@ -61,23 +61,16 @@ dialects <- list(
 dialects$PostgreSQLConnection <- dialects$PqConnection
 dialects$MySQLConnection <- dialects$MariaDBConnection
 
-#' Resolve the dialect for a connection
-#'
-#' Matches on the connection's S4/R5 class, so a driver is supported by adding
-#' one entry above rather than by branching at each call site.
-#'
-#' @param con Database connection
-#' @return Dialect list, with any unspecified field filled from `ansi`
-#' @export
-dialect_for <- \(con) {
+# Returns the dialect for a DBI connection, with each field that the entry
+# does not set filled from `ansi`. It matches on the class of the connection,
+# so a new driver needs one entry above and no branch at a call site.
+dialect_for <- function(con) {
   entry <- dialects[[class(con)[1]]]
   utils::modifyList(ansi, entry %||% list())
 }
 
-#' Run the statements a driver needs immediately after connecting
-#' @param con Database connection
-#' @export
-on_connect <- \(con) {
+# Runs the statements that a driver needs right after it connects
+on_connect <- function(con) {
   for (statement in dialect_for(con)$on_connect) {
     DBI::dbExecute(con, statement)
   }

@@ -5,5 +5,7 @@
 ^_pkgdown\.yml$
 ^docs$
 ^pkgdown$
-^app\.R$
-^analyze\.R$
+^\.claude$
+^survey\.db$
+^inst/images$
+^vignettes/articles$

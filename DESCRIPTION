@@ -8,23 +8,23 @@ Description: Collect survey data in a chat. The user answers structured
     answer, generates content, and asks adaptive questions. Answers are
     stored on any DBI backend.
 License: MIT + file LICENSE
-URL: https://github.com/dylanpieper/surveychat
+URL: https://github.com/dylanpieper/surveychat, https://dylanpieper.github.io/surveychat/
 BugReports: https://github.com/dylanpieper/surveychat/issues
 Depends:
     R (>= 4.4.0)
 Imports:
-    bslib,
-    cli,
-    coro,
+    bslib (>= 0.9.0),
+    cli (>= 3.6.0),
+    coro (>= 1.1.0),
     DBI,
-    ellmer,
+    ellmer (>= 0.4.0),
     htmltools,
     later,
     promises,
     R6,
-    rlang,
+    rlang (>= 1.1.0),
     shiny,
-    shinychat,
+    shinychat (>= 0.3.0),
     stats,
     utils
 Suggests:

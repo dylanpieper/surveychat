@@ -1,119 +1,117 @@
-# Shiny server logic for the chat survey
-
-#' Survey in Shiny server
-#' @param input Shiny input object
-#' @param output Shiny output object
-#' @param session Shiny session object
-#' @param chat Chat object for AI interactions
-#' @param con Database connection, opened and closed by the caller
-#' @param questions List of survey questions
-#' @param messages Message templates
-#' @param content Content generation templates
-#' @param config Optional configuration (uses defaults if not provided)
+#' Run a survey in a Shiny app
+#'
+#' `survey_ui()` and `survey_server()` are a Shiny module pair. Give both the
+#' same `id`. The app owns the chat and the connection: it makes them, passes
+#' them in, and closes the connection when it stops.
+#'
+#' @param id The module id. It must be the same in the UI and the server.
+#' @param survey A survey spec from [survey_spec()].
+#' @param chat An ellmer chat, such as [ellmer::chat_claude()]. Each LLM call
+#'   uses a copy with no history, so one chat can serve all users.
+#' @param con A DBI connection or a `pool::dbPool()`. The server makes the
+#'   tables with [init_database()] if they are not there.
+#' @return `survey_server()` returns no value; it is called for its side
+#'   effects.
 #' @export
-chat_survey <- function(
-  input,
-  output,
-  session,
-  chat,
-  con,
-  questions,
-  messages,
-  content,
-  config = default_config()
-) {
-  survey <- NULL
-  initialized <- FALSE
-  progress <- shiny::reactiveVal(list(
-    current = 1,
-    total = length(questions),
-    complete = FALSE
-  ))
-  finished <- shiny::reactiveVal(FALSE)
+#' @examplesIf interactive() && rlang::is_installed("RSQLite")
+#' library(shiny)
+#'
+#' survey <- survey_spec() |>
+#'   add_question(
+#'     "color",
+#'     text = "What's your favorite color?",
+#'     answer = ellmer::type_string("The color")
+#'   )
+#'
+#' chat <- ellmer::chat_claude(echo = "none")
+#' con <- DBI::dbConnect(RSQLite::SQLite(), "survey.db")
+#' onStop(\() DBI::dbDisconnect(con))
+#'
+#' ui <- survey_ui("survey", title = "Colors")
+#' server <- function(input, output, session) {
+#'   survey_server("survey", survey, chat, con)
+#' }
+#' shinyApp(ui, server)
+survey_server <- function(id, survey, chat, con) {
+  validate_spec(survey)
+  check_backends(chat, con)
+  config <- survey$config
 
-  output$survey_progress <- shiny::renderUI({
-    state <- progress()
-    survey_progress(state$current, state$total, complete = state$complete)
-  })
+  shiny::moduleServer(id, function(input, output, session) {
+    engine <- NULL
+    started <- FALSE
+    total <- length(survey$questions)
+    progress <- shiny::reactiveVal(list(current = 1, complete = FALSE))
+    finished <- shiny::reactiveVal(FALSE)
 
-  output$survey_footer <- shiny::renderUI({
-    if (finished()) survey_complete(messages$closed)
-  })
+    output$progress <- shiny::renderUI({
+      state <- progress()
+      survey_progress(state$current, total, complete = state$complete)
+    })
 
-  # Stream a message into the chat UI, returning the stream's promise
-  send <- function(message) {
-    shinychat::chat_append(
-      "chat",
-      bot_response(
-        message,
-        response_delay = config$response_delay,
-        character_delay = config$character_delay,
-        delay_variance = config$delay_variance
-      ),
-      session = session
-    )
-  }
+    output$footer <- shiny::renderUI({
+      if (finished()) {
+        survey_complete(survey$messages$closed, session$ns("chat"))
+      }
+    })
 
-  # Advance the progress cue to whatever question the survey is now on
-  track <- function() {
-    state <- survey$get_progress()
-    progress(list(
-      current = state$current,
-      total = state$total,
-      complete = FALSE
-    ))
-  }
+    # Streams a message into the chat and returns the stream's promise. The
+    # generator reads its arguments only when the stream starts, so `message`
+    # is forced here to run its side effects now.
+    send <- function(message) {
+      force(message)
+      shinychat::chat_append(
+        "chat",
+        bot_response(
+          message,
+          response_delay = config$response_delay,
+          character_delay = config$character_delay,
+          delay_variance = config$delay_variance
+        ),
+        session = session
+      )
+    }
 
-  # Initialize survey and send first question
-  shiny::observe({
-    if (!initialized) {
-      initialized <<- TRUE
-      survey <<- Survey(chat, con, questions, messages, content, config)
+    track <- function() {
+      progress(list(current = engine$progress()$current, complete = FALSE))
+    }
 
-      # Setup cleanup on session end
-      shiny::onStop(\() {
-        if (!is.null(survey)) {
-          survey$cleanup()
-        }
-      })
+    # Starts once, when the session is live, and sends the first question as a
+    # separate message after the welcome
+    shiny::observe({
+      if (started) {
+        return()
+      }
+      started <<- TRUE
+      engine <<- SurveySession$new(survey, chat, con)
+      shiny::onStop(\() if (!is.null(engine)) engine$close())
 
-      # Send welcome message first
-      send(survey$init())
+      welcome <- engine$start()
+      send(welcome)
       track()
+      first <- engine$first_question()
+      later::later(\() send(first), delay = 1.5)
+    })
 
-      # Send first question as separate message after delay
-      first_question <- survey$get_first_question()
-      later::later(function() send(first_question), delay = 1.5)
-    }
-  })
+    shiny::observeEvent(input$chat_user_input, {
+      if (is.null(engine)) {
+        return()
+      }
+      result <- engine$process_input(input$chat_user_input)
+      if (is.null(result$message)) {
+        return()
+      }
 
-  # Handle user responses
-  shiny::observeEvent(input$chat_user_input, {
-    if (is.null(survey)) {
-      return()
-    }
-
-    result <- survey$process_input(input$chat_user_input)
-
-    if (!is.null(result$message)) {
-      # Survey finished
       if (result$complete) {
-        state <- survey$get_progress()
-        progress(list(
-          current = state$total,
-          total = state$total,
-          complete = TRUE
-        ))
-
+        progress(list(current = total, complete = TRUE))
         # Retire the input only after the closing message has streamed
         promises::then(send(result$message), \(...) finished(TRUE))
-
-        survey$cleanup()
-        survey <<- NULL
+        engine$close()
+        engine <<- NULL
       } else {
         send(result$message)
         track()
       }
-    }
+    })
   })
 }

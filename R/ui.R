@@ -23,19 +23,13 @@ styles <- "
 .sb-complete-icon { color: var(--bs-success, #198754); font-weight: 700; }
 "
 
-#' Chat survey page
-#' @param title Card header title
-#' @param chat_id ID of the chat element
-#' @param progress_id Output ID of the progress cue
-#' @param footer_id Output ID of the completion footer
-#' @return A Shiny UI definition
+#' @rdname survey_server
+#' @param title The title in the card header.
+#' @return `survey_ui()` returns a full-page Shiny UI with the chat, a progress
+#'   cue, and a footer that shows the closing message.
 #' @export
-survey_ui <- \(
-  title = "SurveyChat",
-  chat_id = "chat",
-  progress_id = "survey_progress",
-  footer_id = "survey_footer"
-) {
+survey_ui <- function(id, title = "Survey") {
+  ns <- shiny::NS(id)
   bslib::page_fillable(
     fillable_mobile = TRUE,
     htmltools::tags$head(htmltools::tags$style(htmltools::HTML(styles))),
@@ -44,24 +38,17 @@ survey_ui <- \(
         htmltools::div(
           class = "d-flex justify-content-between align-items-center gap-3",
           htmltools::span(title),
-          shiny::uiOutput(progress_id, inline = TRUE)
+          shiny::uiOutput(ns("progress"), inline = TRUE)
         )
       ),
-      shinychat::chat_ui(id = chat_id),
-      shiny::uiOutput(footer_id)
+      shinychat::chat_ui(id = ns("chat")),
+      shiny::uiOutput(ns("footer"))
     )
   )
 }
 
-#' Progress cue for the current question
-#' @param current Current question number
-#' @param total Total number of questions
-#' @param complete Whether the survey has finished
-#' @param label Label template with {current} and {total} placeholders
-#' @param complete_label Label shown once the survey has finished
-#' @return A Shiny UI definition
-#' @export
-survey_progress <- \(
+# Progress cue: a thin bar and "Question {current} of {total}"
+survey_progress <- function(
   current,
   total,
   complete = FALSE,
@@ -93,15 +80,10 @@ survey_progress <- \(
   )
 }
 
-#' Footer that retires the chat input once the survey has finished
-#'
-#' The chat component re-enables its own input at the end of every stream, so
-#' the input is retired with a style rule rather than the `disabled` property.
-#' @param message Closing message shown in place of the input
-#' @param chat_id ID of the chat element whose input is retired
-#' @return A Shiny UI definition
-#' @export
-survey_complete <- \(message, chat_id = "chat") {
+# Footer that retires the chat input after the survey. The chat re-enables its
+# own input at the end of each stream, so a style rule hides the input instead
+# of the `disabled` property. `chat_id` is the full, namespaced id.
+survey_complete <- function(message, chat_id) {
   htmltools::tagList(
     htmltools::tags$style(htmltools::HTML(sprintf(
       "#%s shiny-chat-input { display: none; }",
@@ -110,7 +92,7 @@ survey_complete <- \(message, chat_id = "chat") {
     htmltools::div(
       class = "sb-complete",
       role = "status",
-      htmltools::span(class = "sb-complete-icon", "✓"),
+      htmltools::span(class = "sb-complete-icon", "\u2713"),
       htmltools::span(message)
     )
   )

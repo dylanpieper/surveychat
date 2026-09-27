@@ -12,6 +12,7 @@ Collect survey data in a chat. The user answers structured questions in a natura
 Useful links:
 \itemize{
   \item \url{https://github.com/dylanpieper/surveychat}
+  \item \url{https://dylanpieper.github.io/surveychat/}
   \item Report bugs at \url{https://github.com/dylanpieper/surveychat/issues}
 }
 

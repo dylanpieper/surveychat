@@ -1,12 +1,7 @@
 # Simulated typing for bot messages
 
-#' Create streaming bot response generator
-#' @param message Message to stream
-#' @param response_delay Initial delay before streaming (default 0)
-#' @param character_delay Base delay between characters (default 0.02)
-#' @param delay_variance Randomness factor for character delay (default 0.01)
-#' @return Async generator
-#' @export
+# Async generator that yields `message` one character at a time. Each delay
+# is `character_delay` plus a random offset within `delay_variance`.
 bot_response <- coro::async_generator(function(
   message,
   response_delay = 0,

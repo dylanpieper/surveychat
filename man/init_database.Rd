@@ -7,13 +7,24 @@
 init_database(con, quiet = FALSE)
 }
 \arguments{
-\item{con}{Database connection from any DBI driver}
+\item{con}{A connection from any DBI driver, or a \code{pool::dbPool()}.}
 
-\item{quiet}{Suppress the success message}
+\item{quiet}{If \code{TRUE}, show no message when the tables are made.}
 }
 \value{
-The connection, invisibly
+\code{con}, invisibly.
 }
 \description{
-Safe to call on every startup: existing tables are left alone.
+Makes the \code{sessions} and \code{responses} tables and their indexes. It is safe to
+call on every start, because it leaves existing tables alone.
+\code{\link[=survey_server]{survey_server()}} calls it for you; call it yourself to make the tables
+before the first user arrives.
+}
+\examples{
+\dontshow{if (rlang::is_installed("RSQLite")) withAutoprint(\{ # examplesIf}
+con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
+init_database(con)
+DBI::dbListTables(con)
+DBI::dbDisconnect(con)
+\dontshow{\}) # examplesIf}
 }

@@ -11,7 +11,7 @@
 
 #' Quote a named list of values as a `(columns) VALUES (values)` pair
 #' @noRd
-quoted_row <- \(con, values) {
+quoted_row <- function(con, values) {
   # NULL and the zero-length results of as.character(NULL) both mean SQL NULL
   values <- lapply(values, \(value) if (length(value) == 0) NA else value)
   list(
@@ -37,7 +37,7 @@ quoted_row <- \(con, values) {
 #' them. A driver with no dialect entry tries `RETURNING` and drops to the
 #' transaction if the driver rejects it.
 #' @noRd
-insert_returning_id <- \(con, table, values, id_column) {
+insert_returning_id <- function(con, table, values, id_column) {
   d <- dialect_for(con)
   row <- quoted_row(con, values)
   target <- DBI::dbQuoteIdentifier(con, table)
@@ -75,7 +75,7 @@ insert_returning_id <- \(con, table, values, id_column) {
 
 #' Insert one row, discarding any generated key
 #' @noRd
-insert_row <- \(con, table, values) {
+insert_row <- function(con, table, values) {
   row <- quoted_row(con, values)
   DBI::dbExecute(
     con,
@@ -93,7 +93,7 @@ insert_row <- \(con, table, values) {
 
 #' Update columns of a single row matched on its primary key
 #' @noRd
-update_row <- \(con, table, values, id_column, id) {
+update_row <- function(con, table, values, id_column, id) {
   assignments <- paste(
     vapply(
       names(values),
@@ -126,7 +126,7 @@ update_row <- \(con, table, values, id_column, id) {
 
 #' Create a table and its indexes, if the table is not already there
 #' @noRd
-create_table <- \(
+create_table <- function(
   con,
   table,
   columns,
@@ -171,15 +171,36 @@ create_table <- \(
   invisible(TRUE)
 }
 
+# Returns a DBI connection for `con`. A pool lends one connection until the
+# frame `env` exits, so every statement of one operation uses the same
+# connection: the dialect lookup, a transaction, and the id lookup after it.
+checkout <- function(con, env = parent.frame()) {
+  if (inherits(con, "Pool")) {
+    rlang::check_installed("pool", "to use a connection pool.")
+    return(pool::localCheckout(con, env))
+  }
+  con
+}
+
 #' Create the survey schema on a connection
 #'
-#' Safe to call on every startup: existing tables are left alone.
+#' Makes the `sessions` and `responses` tables and their indexes. It is safe to
+#' call on every start, because it leaves existing tables alone.
+#' [survey_server()] calls it for you; call it yourself to make the tables
+#' before the first user arrives.
 #'
-#' @param con Database connection from any DBI driver
-#' @param quiet Suppress the success message
-#' @return The connection, invisibly
+#' @param con A connection from any DBI driver, or a `pool::dbPool()`.
+#' @param quiet If `TRUE`, show no message when the tables are made.
+#' @return `con`, invisibly.
 #' @export
-init_database <- \(con, quiet = FALSE) {
+#' @examplesIf rlang::is_installed("RSQLite")
+#' con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
+#' init_database(con)
+#' DBI::dbListTables(con)
+#' DBI::dbDisconnect(con)
+init_database <- function(con, quiet = FALSE) {
+  target <- con
+  con <- checkout(con)
   d <- dialect_for(con)
   on_connect(con)
 
@@ -213,7 +234,7 @@ init_database <- \(con, quiet = FALSE) {
       "question_text TEXT",
       "input_raw TEXT NOT NULL",
       "input_extracted TEXT",
-      "answered_clearly BOOLEAN",
+      "valid BOOLEAN",
       "responded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP",
       "retry_attempt INTEGER DEFAULT 0",
       "question_duration_seconds INTEGER",
@@ -236,15 +257,16 @@ init_database <- \(con, quiet = FALSE) {
     cli::cli_alert_success("Survey schema created on {.val {class(con)[1]}}")
   }
 
-  invisible(con)
+  invisible(target)
 }
 
-#' Start a new survey session
-#' @param con Database connection
-#' @param version Question set version
-#' @return session_id
-#' @export
-start_session <- \(con, version = "1.0") {
+# Row operations ----
+# Each takes a connection or a pool and computes dates and durations in R,
+# because SQL date functions differ on every backend.
+
+# Opens a session row and returns its generated session_id
+start_session <- function(con, version = "1.0") {
+  con <- checkout(con)
   insert_returning_id(
     con,
     "sessions",
@@ -253,19 +275,8 @@ start_session <- \(con, version = "1.0") {
   )
 }
 
-#' Save a question response
-#' @param con Database connection
-#' @param session_id Integer session ID
-#' @param question_id Question identifier
-#' @param question_order Order in survey
-#' @param question_text Actual question text shown
-#' @param input_raw User's raw input
-#' @param input_extracted Cleaned/extracted value
-#' @param answered_clearly Boolean quality flag
-#' @param retry_attempt Which attempt (0 = first)
-#' @param question_duration_seconds Duration in seconds for this question
-#' @export
-save_response <- \(
+# Writes one reply; NULL values become SQL NULL
+save_response <- function(
   con,
   session_id,
   question_id,
@@ -273,10 +284,11 @@ save_response <- \(
   question_text,
   input_raw,
   input_extracted = NULL,
-  answered_clearly = NULL,
+  valid = NULL,
   retry_attempt = 0,
   question_duration_seconds = NULL
 ) {
+  con <- checkout(con)
   insert_row(
     con,
     "responses",
@@ -287,23 +299,15 @@ save_response <- \(
       question_text = as.character(question_text),
       input_raw = as.character(input_raw),
       input_extracted = as.character(input_extracted),
-      answered_clearly = as.logical(answered_clearly),
+      valid = as.logical(valid),
       retry_attempt = as.integer(retry_attempt),
       question_duration_seconds = as.integer(question_duration_seconds)
     )
   )
 }
 
-#' Update how long a session has been running
-#'
-#' The duration is measured in R rather than with SQL date arithmetic, whose
-#' functions differ on every backend.
-#'
-#' @param con Database connection
-#' @param session_id Integer session ID
-#' @param duration_seconds Elapsed seconds since the session started
-#' @export
-update_session_duration <- \(con, session_id, duration_seconds) {
+update_session_duration <- function(con, session_id, duration_seconds) {
+  con <- checkout(con)
   update_row(
     con,
     "sessions",
@@ -313,12 +317,8 @@ update_session_duration <- \(con, session_id, duration_seconds) {
   )
 }
 
-#' Mark session as completed
-#' @param con Database connection
-#' @param session_id Integer session ID
-#' @param duration_seconds Elapsed seconds since the session started
-#' @export
-complete_session <- \(con, session_id, duration_seconds) {
+complete_session <- function(con, session_id, duration_seconds) {
+  con <- checkout(con)
   update_row(
     con,
     "sessions",
@@ -332,11 +332,8 @@ complete_session <- \(con, session_id, duration_seconds) {
   )
 }
 
-#' Increment retry count for session
-#' @param con Database connection
-#' @param session_id Integer session ID
-#' @export
-increment_retry <- \(con, session_id) {
+increment_retry <- function(con, session_id) {
+  con <- checkout(con)
   target <- DBI::dbQuoteIdentifier(con, "sessions")
   id <- DBI::dbQuoteIdentifier(con, "session_id")
   column <- DBI::dbQuoteIdentifier(con, "retry_count")
