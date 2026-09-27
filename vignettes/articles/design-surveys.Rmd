@@ -112,8 +112,10 @@ Each call changes only the fields that it names.
 
 | Function | Fields |
 |-----------------|--------------------------------------------------------|
-| `set_messages()` | `welcome`, `retry`, `completion`, `closed` |
+| `set_messages()` | `welcome`, `retry`, `completion`, `closed`, `locked` |
 | `set_config()` | `tries`, `response_delay`, `character_delay`, `delay_variance`, `version`, `valid` |
+
+`locked` shows in place of the chat input when the chat cannot authenticate, for example when the API key is missing. The server then writes nothing to the database.
 
 ## Databases
 

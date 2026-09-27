@@ -5,6 +5,9 @@ test_that("the progress cue shows the question and the bar width", {
 
 test_that("the footer hides the namespaced chat input", {
   expect_snapshot(cat(as.character(survey_complete("Done", "survey-chat"))))
+  expect_snapshot(cat(as.character(
+    survey_complete("Unavailable", "survey-chat", status = "locked")
+  )))
 })
 
 test_that("survey_ui() namespaces its ids", {

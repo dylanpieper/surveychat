@@ -10,7 +10,7 @@ pak::pak("dylanpieper/surveychat")
 
 ## Example 🍦✨
 
-The package includes a demo that collects the ice cream preferences of the user. The demo uses `ellmer::chat_claude()`, which reads `ANTHROPIC_API_KEY`, and it writes the answers to `survey.db` in the working directory.
+The package includes a demo that collects the ice cream preferences of the user. The demo uses `ellmer::chat_claude()`, which reads `ANTHROPIC_API_KEY`, and it writes the answers to `survey.db` in the working directory. Put the key in `~/.Renviron` (`usethis::edit_r_environ()`) and restart R. Without a key, the survey is locked.
 
 ``` r
 surveychat::run_example("icecream")

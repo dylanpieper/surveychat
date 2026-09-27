@@ -38,6 +38,27 @@ survey_server <- function(id, survey, chat, con) {
   config <- survey$config
 
   shiny::moduleServer(id, function(input, output, session) {
+    # A chat that cannot authenticate locks the survey: the input is hidden,
+    # no session row is written, and the console gets the cause
+    setup_error <- chat_setup_error(chat)
+    if (!is.null(setup_error)) {
+      cli::cli_warn(
+        c(
+          "The survey is locked because the chat is not set up.",
+          "i" = "Set the API key of the provider, then restart R."
+        ),
+        parent = setup_error
+      )
+      output$footer <- shiny::renderUI({
+        survey_complete(
+          survey$messages$locked,
+          session$ns("chat"),
+          status = "locked"
+        )
+      })
+      return(invisible())
+    }
+
     engine <- NULL
     started <- FALSE
     total <- length(survey$questions)

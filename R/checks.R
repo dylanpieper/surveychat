@@ -95,3 +95,23 @@ check_backends <- function(chat, con, call = rlang::caller_env()) {
   }
   invisible(list(chat = chat, con = con))
 }
+
+# Returns NULL if the chat can authenticate, or the error if it cannot. It
+# calls the provider's credentials function, which reads the key from the
+# environment and makes no API call. A chat with no provider counts as ready.
+chat_setup_error <- function(chat) {
+  credentials <- tryCatch(
+    chat$get_provider()@credentials,
+    error = function(err) NULL
+  )
+  if (!is.function(credentials)) {
+    return(NULL)
+  }
+  tryCatch(
+    {
+      credentials()
+      NULL
+    },
+    error = function(err) err
+  )
+}

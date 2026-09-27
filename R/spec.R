@@ -175,6 +175,8 @@ prompt_llm <- function(prompt, format = NULL) {
 #' @param completion The message after the last answer. It can use `{id}`
 #'   placeholders for any answer.
 #' @param closed The text that replaces the chat input after the survey.
+#' @param locked The text that replaces the chat input when the chat is not
+#'   set up, for example when the API key is missing.
 #' @return `spec` with the new messages.
 #' @export
 #' @examples
@@ -185,14 +187,16 @@ set_messages <- function(
   welcome = NULL,
   retry = NULL,
   completion = NULL,
-  closed = NULL
+  closed = NULL,
+  locked = NULL
 ) {
   check_spec(spec)
   given <- compact(list(
     welcome = welcome,
     retry = retry,
     completion = completion,
-    closed = closed
+    closed = closed,
+    locked = locked
   ))
   for (name in names(given)) {
     check_string(given[[name]], arg = name)
@@ -318,7 +322,8 @@ default_messages <- function() {
     welcome = "Hello! Thanks for taking this survey.",
     retry = "Sorry, I didn't quite get that. Could you try again?",
     completion = "Thank you! Your answers are recorded.",
-    closed = "Survey complete. Thank you!"
+    closed = "Survey complete. Thank you!",
+    locked = "This survey is not available right now."
   )
 }
 

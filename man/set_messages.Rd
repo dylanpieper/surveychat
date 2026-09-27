@@ -9,7 +9,8 @@ set_messages(
   welcome = NULL,
   retry = NULL,
   completion = NULL,
-  closed = NULL
+  closed = NULL,
+  locked = NULL
 )
 }
 \arguments{
@@ -23,6 +24,9 @@ set_messages(
 placeholders for any answer.}
 
 \item{closed}{The text that replaces the chat input after the survey.}
+
+\item{locked}{The text that replaces the chat input when the chat is not
+set up, for example when the API key is missing.}
 }
 \value{
 \code{spec} with the new messages.

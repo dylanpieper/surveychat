@@ -33,6 +33,17 @@
         <span>Done</span>
       </div>
 
+---
+
+    Code
+      cat(as.character(survey_complete("Unavailable", "survey-chat", status = "locked")))
+    Output
+      <style>#survey-chat shiny-chat-input { display: none; }</style>
+      <div class="sb-complete sb-locked" role="status">
+        <span class="sb-complete-icon">✕</span>
+        <span>Unavailable</span>
+      </div>
+
 # run_example() lists the examples and rejects an unknown name
 
     Code

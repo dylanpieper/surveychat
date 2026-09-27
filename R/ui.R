@@ -21,6 +21,7 @@ styles <- "
   color: var(--bs-secondary-color, #6c757d);
 }
 .sb-complete-icon { color: var(--bs-success, #198754); font-weight: 700; }
+.sb-locked .sb-complete-icon { color: var(--bs-danger, #dc3545); }
 "
 
 #' @rdname survey_server
@@ -80,19 +81,30 @@ survey_progress <- function(
   )
 }
 
-# Footer that retires the chat input after the survey. The chat re-enables its
-# own input at the end of each stream, so a style rule hides the input instead
-# of the `disabled` property. `chat_id` is the full, namespaced id.
-survey_complete <- function(message, chat_id) {
+# Footer that retires the chat input. "complete" shows a green check after the
+# survey; "locked" shows a red cross when the survey cannot start. The chat
+# re-enables its own input at the end of each stream, so a style rule hides
+# the input instead of the `disabled` property. `chat_id` is the full,
+# namespaced id.
+survey_complete <- function(
+  message,
+  chat_id,
+  status = c("complete", "locked")
+) {
+  status <- rlang::arg_match(status)
+  icon <- if (status == "complete") "\u2713" else "\u2715"
   htmltools::tagList(
     htmltools::tags$style(htmltools::HTML(sprintf(
       "#%s shiny-chat-input { display: none; }",
       chat_id
     ))),
     htmltools::div(
-      class = "sb-complete",
+      class = paste(
+        c("sb-complete", if (status == "locked") "sb-locked"),
+        collapse = " "
+      ),
       role = "status",
-      htmltools::span(class = "sb-complete-icon", "\u2713"),
+      htmltools::span(class = "sb-complete-icon", icon),
       htmltools::span(message)
     )
   )
