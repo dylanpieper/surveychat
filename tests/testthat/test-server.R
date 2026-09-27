@@ -89,6 +89,8 @@ test_that("chat_setup_error() reads credentials from a real ellmer chat", {
 })
 
 test_that("chat_setup_error() warns when it cannot find the credentials", {
+  # The warning shows once per R session; verbose makes it show on every run
+  withr::local_options(rlib_warning_verbosity = "verbose")
   chat <- list(get_provider = function() list())
 
   expect_snapshot(result <- chat_setup_error(chat))
