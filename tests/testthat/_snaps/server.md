@@ -10,7 +10,16 @@
     Condition
       Warning:
       The survey is locked because the chat is not set up.
-      i Set the API key of the provider, then restart R.
+      i Check the credentials of the provider, such as its API key in '~/.Renviron', then restart R.
       Caused by error:
       ! Can't find env var `API_KEY`.
+
+# chat_setup_error() warns when it cannot find the credentials
+
+    Code
+      result <- chat_setup_error(chat)
+    Condition
+      Warning:
+      Could not check the credentials of the chat before the survey starts.
+      i A missing key will show only when the first reply is processed.
 

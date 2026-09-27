@@ -96,15 +96,26 @@ check_backends <- function(chat, con, call = rlang::caller_env()) {
   invisible(list(chat = chat, con = con))
 }
 
-# Returns NULL if the chat can authenticate, or the error if it cannot. It
-# calls the provider's credentials function, which reads the key from the
-# environment and makes no API call. A chat with no provider counts as ready.
+# Returns NULL if the chat's credentials resolve, or the error if they do not.
+# It calls the provider's credentials function. For a key-based provider, such
+# as Anthropic or OpenAI, this only reads an environment variable. For an OAuth
+# or cloud-identity provider, it can request a token over the network. A chat
+# with no get_provider() method, such as a test double, counts as ready. An
+# ellmer provider without a credentials function gives a warning, so a change
+# in ellmer cannot turn the check off without a signal.
 chat_setup_error <- function(chat) {
+  if (!is.function(chat$get_provider)) {
+    return(NULL)
+  }
   credentials <- tryCatch(
     chat$get_provider()@credentials,
-    error = function(err) NULL
+    error = function(err) err
   )
   if (!is.function(credentials)) {
+    cli::cli_warn(c(
+      "Could not check the credentials of the chat before the survey starts.",
+      "i" = "A missing key will show only when the first reply is processed."
+    ))
     return(NULL)
   }
   tryCatch(

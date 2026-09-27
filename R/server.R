@@ -45,7 +45,7 @@ survey_server <- function(id, survey, chat, con) {
       cli::cli_warn(
         c(
           "The survey is locked because the chat is not set up.",
-          "i" = "Set the API key of the provider, then restart R."
+          "i" = "Check the credentials of the provider, such as its API key in {.file ~/.Renviron}, then restart R."
         ),
         parent = setup_error
       )
