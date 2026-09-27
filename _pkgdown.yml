@@ -1,21 +1,19 @@
 url: https://dylanpieper.github.io/surveychat/
-
 template:
   bootstrap: 5
-  light-switch: true
-
+  light-switch: yes
 reference:
-  - title: Build a survey
-    contents:
-      - survey_spec
-      - add_question
-      - prompt_llm
-      - set_messages
-      - set_config
-  - title: Run it
-    contents:
-      - survey_server
-      - run_example
-  - title: Storage
-    contents:
-      - init_database
+- title: Build a survey
+  contents:
+  - survey_spec
+  - add_question
+  - prompt_llm
+  - set_messages
+  - set_config
+- title: Run it
+  contents:
+  - survey_server
+  - run_example
+- title: Storage
+  contents: init_database
+
