@@ -1,0 +1,12 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^\.roborev$
+^LICENSE\.md$
+^_pkgdown\.yml$
+^docs$
+^pkgdown$
+^\.claude$
+^survey\.db$
+^inst/images$
+^vignettes/articles$
+^\.github$

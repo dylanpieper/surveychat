@@ -1,157 +1,53 @@
-#' Template interpolation and text helpers
+# Template interpolation ----
 
-#' Capitalize first letter of a string
-#' @param text String to capitalize
-#' @return String with first letter capitalized
-#' @export
-capitalize_first <- \(text) {
-  if (is.null(text) || nchar(text) == 0) {
-    return(text)
-  }
-  paste0(toupper(substr(text, 1, 1)), substr(text, 2, nchar(text)))
-}
+placeholder_pattern <- "\\{([^}]+)\\}"
 
-#' String interpolation with context-aware capitalization
-#' @param template String with {variable} placeholders
-#' @param data Named list or environment with variable values
-#' @param fallback_value Value to use for missing variables (default: variable name)
-#' @return Interpolated string with proper capitalization
-#' @export
-interpolate_with_context <- \(template, data, fallback_value = NULL) {
-  result <- template
+# Replaces each {name} in `template` with `data[[name]]`. A missing value
+# leaves the bare name, so a template never fails. With `capitalize = TRUE`, a
+# value that starts a sentence gets an uppercase first letter.
+interpolate <- function(template, data, capitalize = FALSE) {
   if (is.null(template)) {
     return(template)
   }
-
-  # Extract all {variable} patterns
-  matches <- gregexpr("\\{([^}]+)\\}", template)[[1]]
+  matches <- gregexpr(placeholder_pattern, template)[[1]]
   if (matches[1] == -1) {
     return(template)
   }
 
-  # Process matches in reverse order to preserve positions
-  match_starts <- as.numeric(matches)
-  match_lengths <- attr(matches, "match.length")
+  starts <- as.integer(matches)
+  ends <- starts + attr(matches, "match.length") - 1
+  result <- template
 
-  for (i in length(match_starts):1) {
-    start <- match_starts[i]
-    length <- match_lengths[i]
+  # Right to left, so earlier positions stay valid after each replacement
+  for (i in rev(seq_along(starts))) {
+    name <- substr(template, starts[i] + 1, ends[i] - 1)
+    value <- data[[name]]
+    found <- length(value) > 0
+    replacement <- if (found) paste(value, collapse = ", ") else name
 
-    # Extract variable name
-    var_text <- substr(template, start, start + length - 1)
-    var_name <- gsub("\\{|\\}", "", var_text)
-
-    # Get replacement value
-    replacement <- if (!is.null(data[[var_name]])) {
-      as.character(data[[var_name]])
-    } else if (!is.null(fallback_value)) {
-      as.character(fallback_value)
-    } else {
-      var_name
-    }
-
-    # Check if variable starts a sentence (at beginning or after ". ", "! ", "? ")
-    is_sentence_start <- start == 1 ||
-      grepl("[\\.\\!\\?]\\s*$", substr(result, 1, start - 1))
-
-    # Capitalize if at sentence start
-    if (is_sentence_start && !is.null(data[[var_name]])) {
+    before <- substr(result, 1, starts[i] - 1)
+    if (capitalize && found && grepl("(^|[.!?]\\s*)$", before)) {
       replacement <- capitalize_first(replacement)
     }
-
-    # Replace in template
     result <- paste0(
-      substr(result, 1, start - 1),
+      before,
       replacement,
-      substr(result, start + length, nchar(result))
+      substr(result, ends[i] + 1, nchar(result))
     )
   }
 
   result
 }
 
-#' String interpolation with named placeholders
-#' @param template String with {variable} placeholders
-#' @param data Named list or environment with variable values
-#' @param fallback_value Value to use for missing variables (default: variable name)
-#' @return Interpolated string
-#' @export
-interpolate <- \(template, data, fallback_value = NULL) {
-  result <- template
-  if (is.null(template)) {
-    return(template)
-  }
-
-  # Extract all {variable} patterns
-  matches <- gregexpr("\\{([^}]+)\\}", template)[[1]]
-  if (matches[1] == -1) {
-    return(template)
-  }
-
-  # Process matches in reverse order to preserve positions
-  match_starts <- as.numeric(matches)
-  match_lengths <- attr(matches, "match.length")
-
-  for (i in length(match_starts):1) {
-    start <- match_starts[i]
-    length <- match_lengths[i]
-
-    # Extract variable name
-    var_text <- substr(template, start, start + length - 1)
-    var_name <- gsub("\\{|\\}", "", var_text)
-
-    # Get replacement value
-    replacement <- if (!is.null(data[[var_name]])) {
-      as.character(data[[var_name]])
-    } else if (!is.null(fallback_value)) {
-      as.character(fallback_value)
-    } else {
-      var_name
-    }
-
-    # Replace in template
-    result <- paste0(
-      substr(result, 1, start - 1),
-      replacement,
-      substr(result, start + length, nchar(result))
-    )
-  }
-
-  result
-}
-
-#' Extract variable names from template strings
-#' @param template Template string with {variable} placeholders
-#' @return Character vector of variable names
-#' @export
-extract_variables <- \(template) {
+# The names of the {placeholders} in a template, in order of use
+extract_variables <- function(template) {
   if (is.null(template)) {
     return(character(0))
   }
-
-  matches <- regmatches(template, gregexpr("\\{([^}]+)\\}", template))[[1]]
-  if (length(matches) == 0) {
-    return(character(0))
-  }
-
-  # Extract variable names without braces
-  gsub("\\{|\\}", "", matches)
+  matches <- regmatches(template, gregexpr(placeholder_pattern, template))[[1]]
+  gsub("[{}]", "", matches)
 }
 
-#' Personalize question text with user responses
-#' @param text Question text with {placeholders}
-#' @param responses List of response values
-#' @return Personalized text
-#' @export
-personalize_text <- \(text, responses) {
-  if (is.null(text)) {
-    return(text)
-  }
-
-  # Filter out internal fields
-  filtered_responses <- responses[!names(responses) %in% c(
-    "adaptive_question_text", "adaptive_question_response", "answered_clearly"
-  )]
-
-  interpolate_with_context(text, filtered_responses)
+capitalize_first <- function(text) {
+  paste0(toupper(substr(text, 1, 1)), substr(text, 2, nchar(text)))
 }

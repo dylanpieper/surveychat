@@ -1,12 +1,4 @@
-#' UI for the chat survey
-
-box::use(
-  bslib[card, card_header, page_fillable],
-  htmltools[HTML, div, span, tagList, tags],
-  shiny[uiOutput],
-  shinychat[chat_ui],
-  R/utils[interpolate],
-)
+# UI for the chat survey
 
 styles <- "
 .sb-progress { display: flex; align-items: center; gap: .5rem; }
@@ -29,49 +21,41 @@ styles <- "
   color: var(--bs-secondary-color, #6c757d);
 }
 .sb-complete-icon { color: var(--bs-success, #198754); font-weight: 700; }
+.sb-locked .sb-complete-icon { color: var(--bs-danger, #dc3545); }
 "
 
-#' Chat survey page
-#' @param title Card header title
-#' @param chat_id ID of the chat element
-#' @param progress_id Output ID of the progress cue
-#' @param footer_id Output ID of the completion footer
-#' @return A Shiny UI definition
+#' @rdname survey_server
+#' @param title The title in the card header.
+#' @return `survey_ui()` returns a full-page Shiny UI with the chat, a progress
+#'   cue, and a footer that shows the closing message.
 #' @export
-survey_ui <- \(title = "SurveyChat",
-               chat_id = "chat",
-               progress_id = "survey_progress",
-               footer_id = "survey_footer") {
-  page_fillable(
+survey_ui <- function(id, title = "Survey") {
+  ns <- shiny::NS(id)
+  bslib::page_fillable(
     fillable_mobile = TRUE,
-    tags$head(tags$style(HTML(styles))),
-    card(
-      card_header(
-        div(
+    htmltools::tags$head(htmltools::tags$style(htmltools::HTML(styles))),
+    bslib::card(
+      bslib::card_header(
+        htmltools::div(
           class = "d-flex justify-content-between align-items-center gap-3",
-          span(title),
-          uiOutput(progress_id, inline = TRUE)
+          htmltools::span(title),
+          shiny::uiOutput(ns("progress"), inline = TRUE)
         )
       ),
-      chat_ui(id = chat_id),
-      uiOutput(footer_id)
+      shinychat::chat_ui(id = ns("chat")),
+      shiny::uiOutput(ns("footer"))
     )
   )
 }
 
-#' Progress cue for the current question
-#' @param current Current question number
-#' @param total Total number of questions
-#' @param complete Whether the survey has finished
-#' @param label Label template with {current} and {total} placeholders
-#' @param complete_label Label shown once the survey has finished
-#' @return A Shiny UI definition
-#' @export
-survey_progress <- \(current,
-                     total,
-                     complete = FALSE,
-                     label = "Question {current} of {total}",
-                     complete_label = "Complete") {
+# Progress cue: a thin bar and "Question {current} of {total}"
+survey_progress <- function(
+  current,
+  total,
+  complete = FALSE,
+  label = "Question {current} of {total}",
+  complete_label = "Complete"
+) {
   percent <- if (complete || total == 0) 100 else 100 * (current - 1) / total
   text <- if (complete) {
     complete_label
@@ -79,39 +63,49 @@ survey_progress <- \(current,
     interpolate(label, list(current = current, total = total))
   }
 
-  div(
+  htmltools::div(
     class = "sb-progress",
-    div(
+    htmltools::div(
       class = "sb-progress-track",
       role = "progressbar",
       `aria-valuenow` = round(percent),
       `aria-valuemin` = 0,
       `aria-valuemax` = 100,
       `aria-label` = text,
-      div(class = "sb-progress-fill", style = paste0("width: ", round(percent, 1), "%;"))
+      htmltools::div(
+        class = "sb-progress-fill",
+        style = paste0("width: ", round(percent, 1), "%;")
+      )
     ),
-    span(class = "sb-progress-label", text)
+    htmltools::span(class = "sb-progress-label", text)
   )
 }
 
-#' Footer that retires the chat input once the survey has finished
-#'
-#' The chat component re-enables its own input at the end of every stream, so
-#' the input is retired with a style rule rather than the `disabled` property.
-#' @param message Closing message shown in place of the input
-#' @param chat_id ID of the chat element whose input is retired
-#' @return A Shiny UI definition
-#' @export
-survey_complete <- \(message, chat_id = "chat") {
-  tagList(
-    tags$style(HTML(sprintf(
-      "#%s shiny-chat-input { display: none; }", chat_id
+# Footer that retires the chat input. "complete" shows a green check after the
+# survey; "locked" shows a red cross when the survey cannot start. The chat
+# re-enables its own input at the end of each stream, so a style rule hides
+# the input instead of the `disabled` property. `chat_id` is the full,
+# namespaced id.
+survey_complete <- function(
+  message,
+  chat_id,
+  status = c("complete", "locked")
+) {
+  status <- rlang::arg_match(status)
+  icon <- if (status == "complete") "\u2713" else "\u2715"
+  htmltools::tagList(
+    htmltools::tags$style(htmltools::HTML(sprintf(
+      "#%s shiny-chat-input { display: none; }",
+      chat_id
     ))),
-    div(
-      class = "sb-complete",
+    htmltools::div(
+      class = paste(
+        c("sb-complete", if (status == "locked") "sb-locked"),
+        collapse = " "
+      ),
       role = "status",
-      span(class = "sb-complete-icon", "✓"),
-      span(message)
+      htmltools::span(class = "sb-complete-icon", icon),
+      htmltools::span(message)
     )
   )
 }

@@ -6,3 +6,4 @@
 *.db
 # roborev snapshots
 /.roborev/
+/docs/

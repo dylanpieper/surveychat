@@ -1,33 +1,30 @@
-#' Database setup and operations
-#'
-#' Every statement here is built from DBI primitives and the dialect table, so
-#' the same code runs against any driver. Three rules keep it portable:
-#'
-#' - Identifiers and values pass through `dbQuoteIdentifier()` and
-#'   `dbQuoteLiteral()`, never through `?` or `$1` placeholders, whose syntax
-#'   differs by driver.
-#' - The schema is built from `dialect_for()` fragments instead of literal DDL.
-#' - Dates and durations are computed in R, never with SQL date functions.
-
-box::use(
-  DBI[dbExecute, dbExistsTable, dbGetQuery, dbQuoteIdentifier, dbQuoteLiteral,
-      dbWithTransaction, SQL],
-  cli[cli_alert_success],
-  R/dialect[dialect_for, on_connect],
-)
+# Database setup and operations
+#
+# Every statement here is built from DBI primitives and the dialect table, so
+# the same code runs against any driver. Three rules keep it portable:
+#
+# - Identifiers and values pass through `dbQuoteIdentifier()` and
+#   `dbQuoteLiteral()`, never through `?` or `$1` placeholders, whose syntax
+#   differs by driver.
+# - The schema is built from `dialect_for()` fragments instead of literal DDL.
+# - Dates and durations are computed in R, never with SQL date functions.
 
 #' Quote a named list of values as a `(columns) VALUES (values)` pair
 #' @noRd
-quoted_row <- \(con, values) {
+quoted_row <- function(con, values) {
   # NULL and the zero-length results of as.character(NULL) both mean SQL NULL
   values <- lapply(values, \(value) if (length(value) == 0) NA else value)
   list(
-    columns = SQL(paste(
-      dbQuoteIdentifier(con, names(values)),
+    columns = DBI::SQL(paste(
+      DBI::dbQuoteIdentifier(con, names(values)),
       collapse = ", "
     )),
-    values = SQL(paste(
-      vapply(values, \(value) as.character(dbQuoteLiteral(con, value)), ""),
+    values = DBI::SQL(paste(
+      vapply(
+        values,
+        \(value) as.character(DBI::dbQuoteLiteral(con, value)),
+        ""
+      ),
       collapse = ", "
     ))
   )
@@ -40,19 +37,29 @@ quoted_row <- \(con, values) {
 #' them. A driver with no dialect entry tries `RETURNING` and drops to the
 #' transaction if the driver rejects it.
 #' @noRd
-insert_returning_id <- \(con, table, values, id_column) {
+insert_returning_id <- function(con, table, values, id_column) {
   d <- dialect_for(con)
   row <- quoted_row(con, values)
-  target <- dbQuoteIdentifier(con, table)
-  id <- dbQuoteIdentifier(con, id_column)
-  insert <- paste0("INSERT INTO ", target, " (", row$columns, ") VALUES (", row$values, ")")
+  target <- DBI::dbQuoteIdentifier(con, table)
+  id <- DBI::dbQuoteIdentifier(con, id_column)
+  insert <- paste0(
+    "INSERT INTO ",
+    target,
+    " (",
+    row$columns,
+    ") VALUES (",
+    row$values,
+    ")"
+  )
 
-  returning <- \() dbGetQuery(con, paste0(insert, " RETURNING ", id, " AS id"))$id
+  returning <- \() {
+    DBI::dbGetQuery(con, paste0(insert, " RETURNING ", id, " AS id"))$id
+  }
 
   two_step <- \() {
-    dbWithTransaction(con, {
-      dbExecute(con, insert)
-      dbGetQuery(con, d$last_id(table, id_column))$id
+    DBI::dbWithTransaction(con, {
+      DBI::dbExecute(con, insert)
+      DBI::dbGetQuery(con, d$last_id(table, id_column))$id
     })
   }
 
@@ -68,25 +75,33 @@ insert_returning_id <- \(con, table, values, id_column) {
 
 #' Insert one row, discarding any generated key
 #' @noRd
-insert_row <- \(con, table, values) {
+insert_row <- function(con, table, values) {
   row <- quoted_row(con, values)
-  dbExecute(con, paste0(
-    "INSERT INTO ", dbQuoteIdentifier(con, table),
-    " (", row$columns, ") VALUES (", row$values, ")"
-  ))
+  DBI::dbExecute(
+    con,
+    paste0(
+      "INSERT INTO ",
+      DBI::dbQuoteIdentifier(con, table),
+      " (",
+      row$columns,
+      ") VALUES (",
+      row$values,
+      ")"
+    )
+  )
 }
 
 #' Update columns of a single row matched on its primary key
 #' @noRd
-update_row <- \(con, table, values, id_column, id) {
+update_row <- function(con, table, values, id_column, id) {
   assignments <- paste(
     vapply(
       names(values),
       \(column) {
         paste(
-          dbQuoteIdentifier(con, column),
+          DBI::dbQuoteIdentifier(con, column),
           "=",
-          dbQuoteLiteral(con, values[[column]])
+          DBI::dbQuoteLiteral(con, values[[column]])
         )
       },
       ""
@@ -94,49 +109,102 @@ update_row <- \(con, table, values, id_column, id) {
     collapse = ", "
   )
 
-  dbExecute(con, paste0(
-    "UPDATE ", dbQuoteIdentifier(con, table),
-    " SET ", assignments,
-    " WHERE ", dbQuoteIdentifier(con, id_column),
-    " = ", dbQuoteLiteral(con, id)
-  ))
+  DBI::dbExecute(
+    con,
+    paste0(
+      "UPDATE ",
+      DBI::dbQuoteIdentifier(con, table),
+      " SET ",
+      assignments,
+      " WHERE ",
+      DBI::dbQuoteIdentifier(con, id_column),
+      " = ",
+      DBI::dbQuoteLiteral(con, id)
+    )
+  )
 }
 
 #' Create a table and its indexes, if the table is not already there
 #' @noRd
-create_table <- \(con, table, columns, indexes = list(), pre_ddl = character(0)) {
-  if (dbExistsTable(con, table)) {
+create_table <- function(
+  con,
+  table,
+  columns,
+  indexes = list(),
+  pre_ddl = character(0)
+) {
+  if (DBI::dbExistsTable(con, table)) {
     return(invisible(FALSE))
   }
 
-  for (statement in pre_ddl) dbExecute(con, statement)
+  for (statement in pre_ddl) {
+    DBI::dbExecute(con, statement)
+  }
 
-  dbExecute(con, paste0(
-    "CREATE TABLE ", dbQuoteIdentifier(con, table),
-    " (\n  ", paste(columns, collapse = ",\n  "), "\n)"
-  ))
+  DBI::dbExecute(
+    con,
+    paste0(
+      "CREATE TABLE ",
+      DBI::dbQuoteIdentifier(con, table),
+      " (\n  ",
+      paste(columns, collapse = ",\n  "),
+      "\n)"
+    )
+  )
 
   # Indexes are created here rather than with IF NOT EXISTS, which MySQL lacks
   for (name in names(indexes)) {
-    dbExecute(con, paste0(
-      "CREATE INDEX ", dbQuoteIdentifier(con, name),
-      " ON ", dbQuoteIdentifier(con, table),
-      " (", paste(dbQuoteIdentifier(con, indexes[[name]]), collapse = ", "), ")"
-    ))
+    DBI::dbExecute(
+      con,
+      paste0(
+        "CREATE INDEX ",
+        DBI::dbQuoteIdentifier(con, name),
+        " ON ",
+        DBI::dbQuoteIdentifier(con, table),
+        " (",
+        paste(DBI::dbQuoteIdentifier(con, indexes[[name]]), collapse = ", "),
+        ")"
+      )
+    )
   }
 
   invisible(TRUE)
 }
 
+# Returns a DBI connection for `con`. A pool lends one connection until the
+# frame `env` exits, so every statement of one operation uses the same
+# connection: the dialect lookup, a transaction, and the id lookup after it.
+checkout <- function(con, env = parent.frame()) {
+  if (inherits(con, "Pool")) {
+    rlang::check_installed(
+      "pool",
+      "to use a connection pool.",
+      version = "1.0.0"
+    )
+    return(pool::localCheckout(con, env))
+  }
+  con
+}
+
 #' Create the survey schema on a connection
 #'
-#' Safe to call on every startup: existing tables are left alone.
+#' Makes the `sessions` and `responses` tables and their indexes. It is safe to
+#' call on every start, because it leaves existing tables alone.
+#' [survey_server()] calls it for you; call it yourself to make the tables
+#' before the first user arrives.
 #'
-#' @param con Database connection from any DBI driver
-#' @param quiet Suppress the success message
-#' @return The connection, invisibly
+#' @param con A connection from any DBI driver, or a `pool::dbPool()`.
+#' @param quiet If `TRUE`, show no message when the tables are made.
+#' @return `con`, invisibly.
 #' @export
-init_database <- \(con, quiet = FALSE) {
+#' @examplesIf rlang::is_installed("RSQLite")
+#' con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
+#' init_database(con)
+#' DBI::dbListTables(con)
+#' DBI::dbDisconnect(con)
+init_database <- function(con, quiet = FALSE) {
+  target <- con
+  con <- checkout(con)
   d <- dialect_for(con)
   on_connect(con)
 
@@ -170,7 +238,7 @@ init_database <- \(con, quiet = FALSE) {
       "question_text TEXT",
       "input_raw TEXT NOT NULL",
       "input_extracted TEXT",
-      "answered_clearly BOOLEAN",
+      "valid BOOLEAN",
       "responded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP",
       "retry_attempt INTEGER DEFAULT 0",
       "question_duration_seconds INTEGER",
@@ -189,19 +257,54 @@ init_database <- \(con, quiet = FALSE) {
     pre_ddl = d$pre_ddl("responses", "response_id")
   )
 
+  check_response_columns(con)
+
   if (created && !quiet) {
-    cli_alert_success("Survey schema created on {.val {class(con)[1]}}")
+    cli::cli_alert_success("Survey schema created on {.val {class(con)[1]}}")
   }
 
-  invisible(con)
+  invisible(target)
 }
 
-#' Start a new survey session
-#' @param con Database connection
-#' @param version Question set version
-#' @return session_id
-#' @export
-start_session <- \(con, version = "1.0") {
+# An existing `responses` table must have every column that save_response()
+# writes. Otherwise the first insert would fail partway through a survey.
+check_response_columns <- function(con, call = rlang::caller_env()) {
+  expected <- c(
+    "session_id",
+    "question_id",
+    "question_order",
+    "question_text",
+    "input_raw",
+    "input_extracted",
+    "valid",
+    "retry_attempt",
+    "question_duration_seconds"
+  )
+  fields <- DBI::dbListFields(con, "responses")
+  missing <- setdiff(expected, fields)
+  if (length(missing) == 0) {
+    return(invisible(con))
+  }
+  cli::cli_abort(
+    c(
+      "The {.field responses} table has no {cli::qty(missing)}column{?s} {.field {missing}}.",
+      "i" = if ("answered_clearly" %in% fields) {
+        "This database is from before surveychat 0.1.0. Rename {.field answered_clearly} to {.field valid}, or use a new database."
+      } else {
+        "Use a new database, or add the missing columns."
+      }
+    ),
+    call = call
+  )
+}
+
+# Row operations ----
+# Each takes a connection or a pool and computes dates and durations in R,
+# because SQL date functions differ on every backend.
+
+# Opens a session row and returns its generated session_id
+start_session <- function(con, version = "1.0") {
+  con <- checkout(con)
   insert_returning_id(
     con,
     "sessions",
@@ -210,44 +313,39 @@ start_session <- \(con, version = "1.0") {
   )
 }
 
-#' Save a question response
-#' @param con Database connection
-#' @param session_id Integer session ID
-#' @param question_id Question identifier
-#' @param question_order Order in survey
-#' @param question_text Actual question text shown
-#' @param input_raw User's raw input
-#' @param input_extracted Cleaned/extracted value
-#' @param answered_clearly Boolean quality flag
-#' @param retry_attempt Which attempt (0 = first)
-#' @param question_duration_seconds Duration in seconds for this question
-#' @export
-save_response <- \(con, session_id, question_id, question_order, question_text,
-  input_raw, input_extracted = NULL, answered_clearly = NULL,
-  retry_attempt = 0, question_duration_seconds = NULL) {
-  insert_row(con, "responses", list(
-    session_id = as.integer(session_id),
-    question_id = as.character(question_id),
-    question_order = as.integer(question_order),
-    question_text = as.character(question_text),
-    input_raw = as.character(input_raw),
-    input_extracted = as.character(input_extracted),
-    answered_clearly = as.logical(answered_clearly),
-    retry_attempt = as.integer(retry_attempt),
-    question_duration_seconds = as.integer(question_duration_seconds)
-  ))
+# Writes one reply; NULL values become SQL NULL
+save_response <- function(
+  con,
+  session_id,
+  question_id,
+  question_order,
+  question_text,
+  input_raw,
+  input_extracted = NULL,
+  valid = NULL,
+  retry_attempt = 0,
+  question_duration_seconds = NULL
+) {
+  con <- checkout(con)
+  insert_row(
+    con,
+    "responses",
+    list(
+      session_id = as.integer(session_id),
+      question_id = as.character(question_id),
+      question_order = as.integer(question_order),
+      question_text = as.character(question_text),
+      input_raw = as.character(input_raw),
+      input_extracted = as.character(input_extracted),
+      valid = as.logical(valid),
+      retry_attempt = as.integer(retry_attempt),
+      question_duration_seconds = as.integer(question_duration_seconds)
+    )
+  )
 }
 
-#' Update how long a session has been running
-#'
-#' The duration is measured in R rather than with SQL date arithmetic, whose
-#' functions differ on every backend.
-#'
-#' @param con Database connection
-#' @param session_id Integer session ID
-#' @param duration_seconds Elapsed seconds since the session started
-#' @export
-update_session_duration <- \(con, session_id, duration_seconds) {
+update_session_duration <- function(con, session_id, duration_seconds) {
+  con <- checkout(con)
   update_row(
     con,
     "sessions",
@@ -257,12 +355,8 @@ update_session_duration <- \(con, session_id, duration_seconds) {
   )
 }
 
-#' Mark session as completed
-#' @param con Database connection
-#' @param session_id Integer session ID
-#' @param duration_seconds Elapsed seconds since the session started
-#' @export
-complete_session <- \(con, session_id, duration_seconds) {
+complete_session <- function(con, session_id, duration_seconds) {
+  con <- checkout(con)
   update_row(
     con,
     "sessions",
@@ -276,18 +370,26 @@ complete_session <- \(con, session_id, duration_seconds) {
   )
 }
 
-#' Increment retry count for session
-#' @param con Database connection
-#' @param session_id Integer session ID
-#' @export
-increment_retry <- \(con, session_id) {
-  target <- dbQuoteIdentifier(con, "sessions")
-  id <- dbQuoteIdentifier(con, "session_id")
-  column <- dbQuoteIdentifier(con, "retry_count")
+increment_retry <- function(con, session_id) {
+  con <- checkout(con)
+  target <- DBI::dbQuoteIdentifier(con, "sessions")
+  id <- DBI::dbQuoteIdentifier(con, "session_id")
+  column <- DBI::dbQuoteIdentifier(con, "retry_count")
 
-  dbExecute(con, paste0(
-    "UPDATE ", target,
-    " SET ", column, " = ", column, " + 1",
-    " WHERE ", id, " = ", dbQuoteLiteral(con, as.integer(session_id))
-  ))
+  DBI::dbExecute(
+    con,
+    paste0(
+      "UPDATE ",
+      target,
+      " SET ",
+      column,
+      " = ",
+      column,
+      " + 1",
+      " WHERE ",
+      id,
+      " = ",
+      DBI::dbQuoteLiteral(con, as.integer(session_id))
+    )
+  )
 }

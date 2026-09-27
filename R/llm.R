@@ -1,39 +1,38 @@
-#' Structured extraction and content generation via ellmer
+# Structured extraction and content generation with ellmer ----
 
-box::use(
-  ellmer[type_object, type_string],
-  R/utils[interpolate],
-)
-
-#' Generate generic schema for content extraction
-#' @param field_name Name of the field to extract
-#' @return Schema object for structured data
-#' @export
-create_generic_schema <- \(field_name = "content") {
-  schema_list <- list()
-  schema_list[[field_name]] <- type_string("Extract the generated content")
-  do.call(type_object, schema_list)
+# Each call works on a copy with no history, so one chat object can serve
+# every user session and no answer leaks into another prompt.
+fresh_chat <- function(chat) {
+  chat$clone()$set_turns(list())
 }
 
-#' Extract structured response from user input
-#' @param chat Chat object
-#' @param user_response User's text input
-#' @param schema Extraction schema
-#' @return Extracted data
-#' @export
-extract_response <- \(chat, user_response, schema) {
-  chat$clone()$set_turns(list())$chat_structured(user_response, type = schema)
+# Extracts the answer and the `valid` flag from one user reply.
+# The question goes into the prompt, so a generic `valid` rule has context.
+extract_response <- function(chat, question_text, user_input, schema) {
+  prompt <- paste0(
+    "Extract the answer from this survey reply.\n\n",
+    "Question: ",
+    question_text %||% "",
+    "\n",
+    "Reply: ",
+    user_input
+  )
+  fresh_chat(chat)$chat_structured(prompt, type = schema)
 }
 
-#' Generate content using templates
-#' @param chat Chat object
-#' @param template_config Template configuration with prompt, intro (optional)
-#' @param context_data Named list of values for template placeholders
-#' @return Generated content
-#' @export
-generate_content <- \(chat, template_config, context_data = list()) {
-  prompt <- interpolate(template_config$prompt, context_data)
-  schema <- create_generic_schema("content")
-  result <- chat$clone()$set_turns(list())$chat_structured(prompt, type = schema)
-  result[["content"]]
+# Generates text from a prompt_llm() with the earlier answers filled in.
+# Stops with an error if the LLM returns no text, so the caller can fall back.
+generate_content <- function(chat, prompt, answers) {
+  schema <- ellmer::type_object(
+    content = ellmer::type_string("The generated text")
+  )
+  result <- fresh_chat(chat)$chat_structured(
+    interpolate(prompt$prompt, answers),
+    type = schema
+  )
+  content <- result[["content"]]
+  if (!rlang::is_string(content) || !nzchar(trimws(content))) {
+    cli::cli_abort("The LLM returned no text.")
+  }
+  content
 }
