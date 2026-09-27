@@ -22,4 +22,7 @@
       Warning:
       Could not check the credentials of the chat before the survey starts.
       i A missing key will show only when the first reply is processed.
+      This warning is displayed once per session.
+      Caused by error in `chat$get_provider()@credentials`:
+      ! no applicable method for `@` applied to an object of class "list"
 

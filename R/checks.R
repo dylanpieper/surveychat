@@ -112,10 +112,15 @@ chat_setup_error <- function(chat) {
     error = function(err) err
   )
   if (!is.function(credentials)) {
-    cli::cli_warn(c(
-      "Could not check the credentials of the chat before the survey starts.",
-      "i" = "A missing key will show only when the first reply is processed."
-    ))
+    cli::cli_warn(
+      c(
+        "Could not check the credentials of the chat before the survey starts.",
+        "i" = "A missing key will show only when the first reply is processed."
+      ),
+      parent = if (inherits(credentials, "condition")) credentials,
+      .frequency = "once",
+      .frequency_id = "surveychat_credentials_unchecked"
+    )
     return(NULL)
   }
   tryCatch(
