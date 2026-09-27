@@ -49,7 +49,7 @@ test_that("dialect_for() falls back to ANSI for an unknown driver", {
   expect_equal(dialect_for(local_sqlite())$returning, TRUE)
 })
 
-test_that("inserts get ids without RETURNING and when RETURNING is unknown", {
+test_that("inserts get ids without RETURNING and when a probe finds it", {
   sqlite <- dialect_for(local_sqlite())
 
   for (returning in list(FALSE, NA)) {
@@ -75,4 +75,25 @@ test_that("init_database() rejects a responses table from before 0.1.0", {
   )
 
   expect_snapshot(init_database(con), error = TRUE)
+})
+
+test_that("an unknown driver falls back when RETURNING fails", {
+  con <- local_sqlite()
+  init_database(con, quiet = TRUE)
+  sqlite <- dialect_for(con)
+  real_get_query <- DBI::dbGetQuery
+  local_mocked_bindings(
+    dialect_for = \(con) utils::modifyList(sqlite, list(returning = NA))
+  )
+  local_mocked_bindings(
+    dbGetQuery = function(conn, statement, ...) {
+      if (grepl(" RETURNING ", statement, fixed = TRUE)) {
+        stop("syntax error near RETURNING")
+      }
+      real_get_query(conn, statement, ...)
+    },
+    .package = "DBI"
+  )
+
+  expect_equal(c(start_session(con), start_session(con)), c(1, 2))
 })
