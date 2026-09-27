@@ -77,6 +77,22 @@ test_that("init_database() rejects a responses table from before 0.1.0", {
   expect_snapshot(init_database(con), error = TRUE)
 })
 
+test_that("init_database() gives renames for the input_* columns", {
+  con <- local_sqlite()
+  init_database(con, quiet = TRUE)
+  DBI::dbExecute(con, "ALTER TABLE responses RENAME COLUMN answer_raw TO input_raw")
+  DBI::dbExecute(
+    con,
+    "ALTER TABLE responses RENAME COLUMN answer_extracted TO input_extracted"
+  )
+  DBI::dbExecute(
+    con,
+    "ALTER TABLE responses RENAME COLUMN duration_seconds TO question_duration_seconds"
+  )
+
+  expect_snapshot(init_database(con), error = TRUE)
+})
+
 test_that("an unknown driver falls back when RETURNING fails", {
   con <- local_sqlite()
   init_database(con, quiet = TRUE)

@@ -285,11 +285,13 @@ check_response_columns <- function(con, call = rlang::caller_env()) {
   if (length(missing) == 0) {
     return(invisible(con))
   }
+  old <- intersect(names(renamed_columns), fields)
+  renames <- paste(old, "to", renamed_columns[old])
   cli::cli_abort(
     c(
       "The {.field responses} table has no {cli::qty(missing)}column{?s} {.field {missing}}.",
-      "i" = if ("answered_clearly" %in% fields) {
-        "This database is from before surveychat 0.1.0. Rename {.field answered_clearly} to {.field valid}, or use a new database."
+      "i" = if (length(old) > 0) {
+        "This database is from an earlier version of surveychat. Rename {renames}, or use a new database."
       } else {
         "Use a new database, or add the missing columns."
       }
@@ -297,6 +299,14 @@ check_response_columns <- function(con, call = rlang::caller_env()) {
     call = call
   )
 }
+
+# Old `responses` column names and their current names
+renamed_columns <- c(
+  answered_clearly = "valid",
+  input_raw = "answer_raw",
+  input_extracted = "answer_extracted",
+  question_duration_seconds = "duration_seconds"
+)
 
 # Row operations ----
 # Each takes a connection or a pool and computes dates and durations in R,
