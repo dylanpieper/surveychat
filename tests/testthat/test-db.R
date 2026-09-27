@@ -82,12 +82,14 @@ test_that("an unknown driver falls back when RETURNING fails", {
   init_database(con, quiet = TRUE)
   sqlite <- dialect_for(con)
   real_get_query <- DBI::dbGetQuery
+  attempts <- 0
   local_mocked_bindings(
     dialect_for = \(con) utils::modifyList(sqlite, list(returning = NA))
   )
   local_mocked_bindings(
     dbGetQuery = function(conn, statement, ...) {
       if (grepl(" RETURNING ", statement, fixed = TRUE)) {
+        attempts <<- attempts + 1
         stop("syntax error near RETURNING")
       }
       real_get_query(conn, statement, ...)
@@ -96,4 +98,5 @@ test_that("an unknown driver falls back when RETURNING fails", {
   )
 
   expect_equal(c(start_session(con), start_session(con)), c(1, 2))
+  expect_equal(attempts, 2)
 })
