@@ -34,7 +34,7 @@ for (backend in names(backends)) {
       con,
       "SELECT * FROM responses ORDER BY question_order"
     )
-    expect_equal(responses$input_extracted, c("Ana", NA))
+    expect_equal(responses$answer_extracted, c("Ana", NA))
     expect_equal(responses$question_text, c("Name?", NA))
     expect_equal(as.logical(responses$valid), c(TRUE, NA))
   })
@@ -72,6 +72,34 @@ test_that("init_database() rejects a responses table from before 0.1.0", {
   DBI::dbExecute(
     con,
     "ALTER TABLE responses RENAME COLUMN valid TO answered_clearly"
+  )
+
+  expect_snapshot(init_database(con), error = TRUE)
+})
+
+test_that("init_database() gives renames for the input_* columns", {
+  con <- local_sqlite()
+  init_database(con, quiet = TRUE)
+  DBI::dbExecute(con, "ALTER TABLE responses RENAME COLUMN answer_raw TO input_raw")
+  DBI::dbExecute(
+    con,
+    "ALTER TABLE responses RENAME COLUMN answer_extracted TO input_extracted"
+  )
+  DBI::dbExecute(
+    con,
+    "ALTER TABLE responses RENAME COLUMN duration_seconds TO question_duration_seconds"
+  )
+
+  expect_snapshot(init_database(con), error = TRUE)
+})
+
+test_that("init_database() gives only renames that supply a missing column", {
+  con <- local_sqlite()
+  init_database(con, quiet = TRUE)
+  DBI::dbExecute(con, "ALTER TABLE responses ADD COLUMN input_raw TEXT")
+  DBI::dbExecute(
+    con,
+    "ALTER TABLE responses RENAME COLUMN retry_attempt TO tries"
   )
 
   expect_snapshot(init_database(con), error = TRUE)

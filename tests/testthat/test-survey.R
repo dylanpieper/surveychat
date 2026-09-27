@@ -1,7 +1,7 @@
 responses_of <- function(con) {
   DBI::dbGetQuery(
     con,
-    "SELECT question_id, question_text, input_extracted, retry_attempt
+    "SELECT question_id, question_text, answer_extracted, retry_attempt
      FROM responses ORDER BY response_id"
   )
 }

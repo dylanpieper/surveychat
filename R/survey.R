@@ -126,11 +126,11 @@ SurveySession <- R6::R6Class(
         question_id = question$id,
         question_order = private$q_num,
         question_text = private$shown_text,
-        input_raw = user_input,
-        input_extracted = extracted[[question$id]],
+        answer_raw = user_input,
+        answer_extracted = extracted[[question$id]],
         valid = isTRUE(extracted$valid),
         retry_attempt = private$retry_count,
-        question_duration_seconds = elapsed(private$question_start)
+        duration_seconds = elapsed(private$question_start)
       )
     },
 
