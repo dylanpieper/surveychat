@@ -9,6 +9,7 @@ test_that("survey_server() rejects a chat or a connection of the wrong type", {
 
 test_that("a pool works as the connection", {
   skip_if_not_installed("pool")
+  skip_if_not_installed("RSQLite")
   # Each pooled in-memory SQLite connection is a new database, so use a file
   path <- withr::local_tempfile(fileext = ".db")
   pool <- pool::dbPool(RSQLite::SQLite(), dbname = path)

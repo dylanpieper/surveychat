@@ -29,6 +29,7 @@ fake_chat <- function(...) {
 }
 
 local_sqlite <- function(env = parent.frame()) {
+  testthat::skip_if_not_installed("RSQLite")
   con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
   withr::defer(DBI::dbDisconnect(con), envir = env)
   con

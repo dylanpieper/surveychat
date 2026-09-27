@@ -22,6 +22,13 @@ test_that("survey_server() starts the survey and advances on each reply", {
         DBI::dbGetQuery(con, "SELECT COUNT(*) AS n FROM responses")$n,
         1
       )
+
+      # Run the delayed first question and the streams before the session ends
+      deadline <- Sys.time() + 5
+      while (!later::loop_empty() && Sys.time() < deadline) {
+        later::run_now(0.1)
+      }
+      expect_true(later::loop_empty())
     }
   )
 })

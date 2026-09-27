@@ -17,18 +17,22 @@ test_that("survey_ui() namespaces its ids", {
 
 test_that("bot_response() streams one character at a time", {
   result <- NULL
+  failure <- NULL
   promises::then(
     coro::async_collect(bot_response(
       "hi",
       character_delay = 0,
       delay_variance = 0
     )),
-    \(x) result <<- x
+    onFulfilled = \(x) result <<- x,
+    onRejected = \(err) failure <<- err
   )
-  while (is.null(result)) {
+  deadline <- Sys.time() + 5
+  while (is.null(result) && is.null(failure) && Sys.time() < deadline) {
     later::run_now(0.05)
   }
 
+  expect_null(failure)
   expect_equal(unlist(result), c("h", "i"))
 })
 
