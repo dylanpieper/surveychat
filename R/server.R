@@ -1,13 +1,4 @@
-#' Shiny server logic for the chat survey
-
-box::use(
-  promises[then],
-  shiny[observe, observeEvent, onStop, reactiveVal, renderUI],
-  R/config[default_config],
-  R/stream[bot_response],
-  R/survey[Survey],
-  R/ui[survey_complete, survey_progress],
-)
+# Shiny server logic for the chat survey
 
 #' Survey in Shiny server
 #' @param input Shiny input object
@@ -20,34 +11,47 @@ box::use(
 #' @param content Content generation templates
 #' @param config Optional configuration (uses defaults if not provided)
 #' @export
-chat_survey <- function(input, output, session, chat, con, questions, messages,
-                        content, config = default_config()) {
+chat_survey <- function(
+  input,
+  output,
+  session,
+  chat,
+  con,
+  questions,
+  messages,
+  content,
+  config = default_config()
+) {
   survey <- NULL
   initialized <- FALSE
-  progress <- reactiveVal(list(
+  progress <- shiny::reactiveVal(list(
     current = 1,
     total = length(questions),
     complete = FALSE
   ))
-  finished <- reactiveVal(FALSE)
+  finished <- shiny::reactiveVal(FALSE)
 
-  output$survey_progress <- renderUI({
+  output$survey_progress <- shiny::renderUI({
     state <- progress()
     survey_progress(state$current, state$total, complete = state$complete)
   })
 
-  output$survey_footer <- renderUI({
+  output$survey_footer <- shiny::renderUI({
     if (finished()) survey_complete(messages$closed)
   })
 
   # Stream a message into the chat UI, returning the stream's promise
   send <- function(message) {
-    shinychat::chat_append("chat", bot_response(
-      message,
-      response_delay = config$response_delay,
-      character_delay = config$character_delay,
-      delay_variance = config$delay_variance
-    ), session = session)
+    shinychat::chat_append(
+      "chat",
+      bot_response(
+        message,
+        response_delay = config$response_delay,
+        character_delay = config$character_delay,
+        delay_variance = config$delay_variance
+      ),
+      session = session
+    )
   }
 
   # Advance the progress cue to whatever question the survey is now on
@@ -61,13 +65,13 @@ chat_survey <- function(input, output, session, chat, con, questions, messages,
   }
 
   # Initialize survey and send first question
-  observe({
+  shiny::observe({
     if (!initialized) {
       initialized <<- TRUE
       survey <<- Survey(chat, con, questions, messages, content, config)
 
       # Setup cleanup on session end
-      onStop(\() {
+      shiny::onStop(\() {
         if (!is.null(survey)) {
           survey$cleanup()
         }
@@ -84,7 +88,7 @@ chat_survey <- function(input, output, session, chat, con, questions, messages,
   })
 
   # Handle user responses
-  observeEvent(input$chat_user_input, {
+  shiny::observeEvent(input$chat_user_input, {
     if (is.null(survey)) {
       return()
     }
@@ -102,7 +106,7 @@ chat_survey <- function(input, output, session, chat, con, questions, messages,
         ))
 
         # Retire the input only after the closing message has streamed
-        then(send(result$message), \(...) finished(TRUE))
+        promises::then(send(result$message), \(...) finished(TRUE))
 
         survey$cleanup()
         survey <<- NULL

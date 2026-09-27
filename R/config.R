@@ -1,4 +1,4 @@
-#' Application configuration
+# Application configuration
 
 #' Default survey configuration
 #' @param tries Maximum retry attempts for unclear responses
@@ -8,11 +8,13 @@
 #' @param version Survey version
 #' @return Configuration list
 #' @export
-default_config <- \(tries = 2,
-                    response_delay = 0,
-                    character_delay = 0.02,
-                    delay_variance = 0.01,
-                    version = "1.0") {
+default_config <- \(
+  tries = 2,
+  response_delay = 0,
+  character_delay = 0.02,
+  delay_variance = 0.01,
+  version = "1.0"
+) {
   list(
     tries = tries,
     response_delay = response_delay,

@@ -1,12 +1,4 @@
-#' UI for the chat survey
-
-box::use(
-  bslib[card, card_header, page_fillable],
-  htmltools[HTML, div, span, tagList, tags],
-  shiny[uiOutput],
-  shinychat[chat_ui],
-  R/utils[interpolate],
-)
+# UI for the chat survey
 
 styles <- "
 .sb-progress { display: flex; align-items: center; gap: .5rem; }
@@ -38,23 +30,25 @@ styles <- "
 #' @param footer_id Output ID of the completion footer
 #' @return A Shiny UI definition
 #' @export
-survey_ui <- \(title = "SurveyChat",
-               chat_id = "chat",
-               progress_id = "survey_progress",
-               footer_id = "survey_footer") {
-  page_fillable(
+survey_ui <- \(
+  title = "SurveyChat",
+  chat_id = "chat",
+  progress_id = "survey_progress",
+  footer_id = "survey_footer"
+) {
+  bslib::page_fillable(
     fillable_mobile = TRUE,
-    tags$head(tags$style(HTML(styles))),
-    card(
-      card_header(
-        div(
+    htmltools::tags$head(htmltools::tags$style(htmltools::HTML(styles))),
+    bslib::card(
+      bslib::card_header(
+        htmltools::div(
           class = "d-flex justify-content-between align-items-center gap-3",
-          span(title),
-          uiOutput(progress_id, inline = TRUE)
+          htmltools::span(title),
+          shiny::uiOutput(progress_id, inline = TRUE)
         )
       ),
-      chat_ui(id = chat_id),
-      uiOutput(footer_id)
+      shinychat::chat_ui(id = chat_id),
+      shiny::uiOutput(footer_id)
     )
   )
 }
@@ -67,11 +61,13 @@ survey_ui <- \(title = "SurveyChat",
 #' @param complete_label Label shown once the survey has finished
 #' @return A Shiny UI definition
 #' @export
-survey_progress <- \(current,
-                     total,
-                     complete = FALSE,
-                     label = "Question {current} of {total}",
-                     complete_label = "Complete") {
+survey_progress <- \(
+  current,
+  total,
+  complete = FALSE,
+  label = "Question {current} of {total}",
+  complete_label = "Complete"
+) {
   percent <- if (complete || total == 0) 100 else 100 * (current - 1) / total
   text <- if (complete) {
     complete_label
@@ -79,18 +75,21 @@ survey_progress <- \(current,
     interpolate(label, list(current = current, total = total))
   }
 
-  div(
+  htmltools::div(
     class = "sb-progress",
-    div(
+    htmltools::div(
       class = "sb-progress-track",
       role = "progressbar",
       `aria-valuenow` = round(percent),
       `aria-valuemin` = 0,
       `aria-valuemax` = 100,
       `aria-label` = text,
-      div(class = "sb-progress-fill", style = paste0("width: ", round(percent, 1), "%;"))
+      htmltools::div(
+        class = "sb-progress-fill",
+        style = paste0("width: ", round(percent, 1), "%;")
+      )
     ),
-    span(class = "sb-progress-label", text)
+    htmltools::span(class = "sb-progress-label", text)
   )
 }
 
@@ -103,15 +102,16 @@ survey_progress <- \(current,
 #' @return A Shiny UI definition
 #' @export
 survey_complete <- \(message, chat_id = "chat") {
-  tagList(
-    tags$style(HTML(sprintf(
-      "#%s shiny-chat-input { display: none; }", chat_id
+  htmltools::tagList(
+    htmltools::tags$style(htmltools::HTML(sprintf(
+      "#%s shiny-chat-input { display: none; }",
+      chat_id
     ))),
-    div(
+    htmltools::div(
       class = "sb-complete",
       role = "status",
-      span(class = "sb-complete-icon", "✓"),
-      span(message)
+      htmltools::span(class = "sb-complete-icon", "✓"),
+      htmltools::span(message)
     )
   )
 }

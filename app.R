@@ -1,13 +1,8 @@
-# Modules ----
-Sys.setenv(R_BOX_PATH = getwd())
-
-box::use(
-  DBI[dbConnect, dbDisconnect],
-  shiny[onStop, shinyApp],
-  ellmer[chat_claude, type_boolean, type_object, type_string],
-  R / server[chat_survey],
-  R / ui[survey_ui],
-)
+# Packages ----
+devtools::load_all()
+library(DBI)
+library(shiny)
+library(ellmer)
 
 # Messages ----
 messages <- list(

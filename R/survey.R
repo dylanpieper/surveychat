@@ -1,12 +1,4 @@
-#' Survey state machine
-
-box::use(
-  cli,
-  R/config[default_config],
-  R/db,
-  R/llm,
-  R/utils[extract_variables, interpolate, personalize_text],
-)
+# Survey state machine
 
 #' Create a Survey class instance
 #' @param chat Chat object for AI interactions
@@ -17,9 +9,15 @@ box::use(
 #' @param config Application configuration (optional, uses defaults)
 #' @return Survey class instance
 #' @export
-Survey <- function(chat, con, questions, messages, content,
-                   config = default_config()) {
-  db$init_database(con, quiet = TRUE)
+Survey <- function(
+  chat,
+  con,
+  questions,
+  messages,
+  content,
+  config = default_config()
+) {
+  init_database(con, quiet = TRUE)
 
   self <- list(
     # State
@@ -42,7 +40,7 @@ Survey <- function(chat, con, questions, messages, content,
 
   # Initialize database session and return welcome message
   self$init <- function() {
-    self$session_id <<- db$start_session(self$con, version = self$config$version)
+    self$session_id <<- start_session(self$con, version = self$config$version)
     self$session_start_time <<- Sys.time()
     self$question_start_time <<- Sys.time()
     self$messages$welcome
@@ -87,13 +85,15 @@ Survey <- function(chat, con, questions, messages, content,
     current_q <- self$questions[[self$q_num]]
 
     # Extract and save response
-    extracted_data <- llm$extract_response(self$chat, user_input, current_q$schema)
+    extracted_data <- extract_response(self$chat, user_input, current_q$schema)
     field_name <- current_q$id
     answered_clearly <- extracted_data$answered_clearly
 
     # Determine question text for database
-    question_text <- if (!is.null(current_q$content) &&
-      current_q$content == "follow_up") {
+    question_text <- if (
+      !is.null(current_q$content) &&
+        current_q$content == "follow_up"
+    ) {
       self$responses$adaptive_question_text
     } else {
       personalize_text(current_q$text, self$responses)
@@ -103,7 +103,7 @@ Survey <- function(chat, con, questions, messages, content,
     question_duration <- elapsed(self$question_start_time)
 
     # Save to database
-    db$save_response(
+    save_response(
       self$con,
       session_id = self$session_id,
       question_id = current_q$id,
@@ -117,7 +117,7 @@ Survey <- function(chat, con, questions, messages, content,
     )
 
     # Update session duration
-    db$update_session_duration(
+    update_session_duration(
       self$con,
       self$session_id,
       elapsed(self$session_start_time)
@@ -126,7 +126,7 @@ Survey <- function(chat, con, questions, messages, content,
     # Check if retry needed
     if (!answered_clearly && self$retry_count < self$config$tries) {
       self$retry_count <<- self$retry_count + 1
-      db$increment_retry(self$con, self$session_id)
+      increment_retry(self$con, self$session_id)
       self$processing <<- FALSE
       return(list(message = self$messages$retry, complete = FALSE))
     }
@@ -134,7 +134,10 @@ Survey <- function(chat, con, questions, messages, content,
     # Store response data
     self$responses[[field_name]] <<- extracted_data[[field_name]]
     self$responses[[paste0(field_name, "_raw")]] <<- user_input
-    self$responses[[paste0(field_name, "_answered_clearly")]] <<- answered_clearly
+    self$responses[[paste0(
+      field_name,
+      "_answered_clearly"
+    )]] <<- answered_clearly
     self$retry_count <<- 0
 
     # Move to next question
@@ -145,12 +148,15 @@ Survey <- function(chat, con, questions, messages, content,
 
     # Check if survey complete
     if (self$q_num > length(self$questions)) {
-      db$complete_session(
+      complete_session(
         self$con,
         self$session_id,
         elapsed(self$session_start_time)
       )
-      completion_message <- interpolate(self$messages$completion, self$responses)
+      completion_message <- interpolate(
+        self$messages$completion,
+        self$responses
+      )
       self$processing <<- FALSE
       return(list(message = completion_message, complete = TRUE))
     }
@@ -160,19 +166,25 @@ Survey <- function(chat, con, questions, messages, content,
     generated_content <- self$generate_content(next_q)
 
     # Handle failed adaptive questions
-    if (is.null(generated_content) && !is.null(next_q$content) &&
-      next_q$content == "follow_up") {
+    if (
+      is.null(generated_content) &&
+        !is.null(next_q$content) &&
+        next_q$content == "follow_up"
+    ) {
       # Skip to next question
       self$q_num <<- self$q_num + 1
       self$question_start_time <<- Sys.time()
 
       if (self$q_num > length(self$questions)) {
-        db$complete_session(
+        complete_session(
           self$con,
           self$session_id,
           elapsed(self$session_start_time)
         )
-        completion_message <- interpolate(self$messages$completion, self$responses)
+        completion_message <- interpolate(
+          self$messages$completion,
+          self$responses
+        )
         self$processing <<- FALSE
         return(list(message = completion_message, complete = TRUE))
       }
@@ -212,10 +224,12 @@ Survey <- function(chat, con, questions, messages, content,
 
     tryCatch(
       {
-        llm$generate_content(self$chat, template_config, context_data)
+        generate_content(self$chat, template_config, context_data)
       },
       error = function(err) {
-        cli$cli_alert_warning("Content generation failed for {question$content}")
+        cli::cli_alert_warning(
+          "Content generation failed for {question$content}"
+        )
         NULL
       }
     )

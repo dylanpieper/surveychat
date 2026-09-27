@@ -1,4 +1,4 @@
-#' Template interpolation and text helpers
+# Template interpolation and text helpers
 
 #' Capitalize first letter of a string
 #' @param text String to capitalize
@@ -149,9 +149,14 @@ personalize_text <- \(text, responses) {
   }
 
   # Filter out internal fields
-  filtered_responses <- responses[!names(responses) %in% c(
-    "adaptive_question_text", "adaptive_question_response", "answered_clearly"
-  )]
+  filtered_responses <- responses[
+    !names(responses) %in%
+      c(
+        "adaptive_question_text",
+        "adaptive_question_response",
+        "answered_clearly"
+      )
+  ]
 
   interpolate_with_context(text, filtered_responses)
 }

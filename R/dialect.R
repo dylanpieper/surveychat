@@ -1,14 +1,10 @@
-#' SQL dialect differences between DBI drivers
-#'
-#' Every backend agrees on the shape of the schema but disagrees on three
-#' points: how an auto-incrementing primary key is declared, whether
-#' `INSERT ... RETURNING` exists, and what has to run right after connecting.
-#' Each entry below answers those questions for one driver. Anything not
-#' listed falls back to `ansi`, which probes the connection at runtime.
-
-box::use(
-  DBI[dbExecute],
-)
+# SQL dialect differences between DBI drivers
+#
+# Every backend agrees on the shape of the schema but disagrees on three
+# points: how an auto-incrementing primary key is declared, whether
+# `INSERT ... RETURNING` exists, and what has to run right after connecting.
+# Each entry below answers those questions for one driver. Anything not
+# listed falls back to `ansi`, which probes the connection at runtime.
 
 # The portable baseline. `returning = NA` means "unknown, probe it".
 ansi <- list(
@@ -18,13 +14,17 @@ ansi <- list(
   foreign_keys = TRUE,
   fk_cascade = " ON DELETE CASCADE",
   returning = NA,
-  last_id = \(table, column) paste0("SELECT MAX(", column, ") AS id FROM ", table)
+  last_id = \(table, column) {
+    paste0("SELECT MAX(", column, ") AS id FROM ", table)
+  }
 )
 
 dialects <- list(
   SQLiteConnection = list(
     on_connect = "PRAGMA foreign_keys = ON",
-    serial_pk = \(table, column) paste(column, "INTEGER PRIMARY KEY AUTOINCREMENT"),
+    serial_pk = \(table, column) {
+      paste(column, "INTEGER PRIMARY KEY AUTOINCREMENT")
+    },
     returning = TRUE,
     last_id = \(table, column) "SELECT last_insert_rowid() AS id"
   ),
@@ -32,7 +32,9 @@ dialects <- list(
     # DuckDB has no AUTOINCREMENT, and it rewrites an UPDATE as a delete plus an
     # insert, so any parent row of a foreign key becomes read-only. Sessions are
     # updated on every answer, so the constraint is dropped rather than the key.
-    pre_ddl = \(table, column) paste0("CREATE SEQUENCE IF NOT EXISTS seq_", table),
+    pre_ddl = \(table, column) {
+      paste0("CREATE SEQUENCE IF NOT EXISTS seq_", table)
+    },
     serial_pk = \(table, column) {
       paste0(column, " INTEGER PRIMARY KEY DEFAULT nextval('seq_", table, "')")
     },
@@ -48,7 +50,9 @@ dialects <- list(
     last_id = \(table, column) "SELECT lastval() AS id"
   ),
   MariaDBConnection = list(
-    serial_pk = \(table, column) paste(column, "INTEGER AUTO_INCREMENT PRIMARY KEY"),
+    serial_pk = \(table, column) {
+      paste(column, "INTEGER AUTO_INCREMENT PRIMARY KEY")
+    },
     returning = FALSE,
     last_id = \(table, column) "SELECT LAST_INSERT_ID() AS id"
   )
@@ -74,6 +78,8 @@ dialect_for <- \(con) {
 #' @param con Database connection
 #' @export
 on_connect <- \(con) {
-  for (statement in dialect_for(con)$on_connect) dbExecute(con, statement)
+  for (statement in dialect_for(con)$on_connect) {
+    DBI::dbExecute(con, statement)
+  }
   invisible(con)
 }
