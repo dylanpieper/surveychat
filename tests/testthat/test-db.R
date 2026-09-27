@@ -93,6 +93,18 @@ test_that("init_database() gives renames for the input_* columns", {
   expect_snapshot(init_database(con), error = TRUE)
 })
 
+test_that("init_database() gives only renames that supply a missing column", {
+  con <- local_sqlite()
+  init_database(con, quiet = TRUE)
+  DBI::dbExecute(con, "ALTER TABLE responses ADD COLUMN input_raw TEXT")
+  DBI::dbExecute(
+    con,
+    "ALTER TABLE responses RENAME COLUMN retry_attempt TO tries"
+  )
+
+  expect_snapshot(init_database(con), error = TRUE)
+})
+
 test_that("an unknown driver falls back when RETURNING fails", {
   con <- local_sqlite()
   init_database(con, quiet = TRUE)

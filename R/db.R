@@ -285,16 +285,17 @@ check_response_columns <- function(con, call = rlang::caller_env()) {
   if (length(missing) == 0) {
     return(invisible(con))
   }
-  old <- intersect(names(renamed_columns), fields)
+  old <- names(renamed_columns)[
+    names(renamed_columns) %in% fields & renamed_columns %in% missing
+  ]
   renames <- paste(old, "to", renamed_columns[old])
+  added <- setdiff(missing, renamed_columns[old])
   cli::cli_abort(
     c(
       "The {.field responses} table has no {cli::qty(missing)}column{?s} {.field {missing}}.",
-      "i" = if (length(old) > 0) {
-        "This database is from an earlier version of surveychat. Rename {renames}, or use a new database."
-      } else {
-        "Use a new database, or add the missing columns."
-      }
+      "i" = "Use a new database, or change this one:",
+      "*" = if (length(old) > 0) "Rename {renames}.",
+      "*" = if (length(added) > 0) "Add {.field {added}}."
     ),
     call = call
   )
