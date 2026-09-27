@@ -1,0 +1,41 @@
+Package: surveychat
+Title: Conversational Surveys with LLM Extraction
+Version: 0.1.0
+Authors@R:
+    person("Dylan", "Pieper", , "dylanpieper@gmail.com", role = c("aut", "cre"))
+Description: Collect survey data in a chat. The user answers structured
+    questions in a natural dialogue, and an LLM extracts and validates each
+    answer, generates content, and asks adaptive questions. Answers are
+    stored on any DBI backend.
+License: MIT + file LICENSE
+URL: https://github.com/dylanpieper/surveychat
+BugReports: https://github.com/dylanpieper/surveychat/issues
+Depends:
+    R (>= 4.4.0)
+Imports:
+    bslib,
+    cli,
+    coro,
+    DBI,
+    ellmer,
+    htmltools,
+    later,
+    promises,
+    R6,
+    rlang,
+    shiny,
+    shinychat,
+    stats,
+    utils
+Suggests:
+    duckdb,
+    pool,
+    RMariaDB,
+    RPostgres,
+    RSQLite,
+    testthat (>= 3.0.0),
+    withr
+Config/testthat/edition: 3
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
