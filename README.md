@@ -16,7 +16,7 @@ The package includes a demo that collects the ice cream preferences of the user.
 surveychat::run_example("icecream")
 ```
 
-The source of the demo is in [`inst/examples/icecream/app.R`](inst/examples/icecream/app.R). Copy it to start your own survey.
+The source of the demo is in [`inst/examples/icecream/app.R`](https://github.com/dylanpieper/surveychat/blob/main/inst/examples/icecream/app.R). Copy it to start your own survey.
 
 ## Key Features
 
@@ -107,10 +107,6 @@ Use `set_messages()` to change the welcome, retry, and closing messages, and `se
 | Exchange | `question_text`, `answer_raw`, `answer_extracted` |
 | Quality | `valid`, `retry_attempt` |
 | Timing | `responded_at`, `duration_seconds` |
-
--   **Audit:** the raw and the extracted answers stay side by side, so you can examine the quality of the extraction after the survey.
--   **Indexes:** they cover the queries by session, by question, and by order.
--   **Setup:** the server makes the tables when a session starts and leaves existing tables alone. To make them before the first user arrives, call `init_database(con)`.
 
 ## Analyze the Data
 
