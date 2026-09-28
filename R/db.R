@@ -217,7 +217,7 @@ init_database <- function(con, quiet = FALSE) {
       "completed_at TIMESTAMP",
       "completed BOOLEAN NOT NULL DEFAULT FALSE",
       "retry_count INTEGER DEFAULT 0",
-      "question_set_version TEXT DEFAULT '1.0'",
+      "version TEXT DEFAULT '1.0'",
       "duration_seconds INTEGER"
     ),
     indexes = list(
@@ -257,7 +257,8 @@ init_database <- function(con, quiet = FALSE) {
     pre_ddl = d$pre_ddl("responses", "response_id")
   )
 
-  check_response_columns(con)
+  check_columns(con, "sessions")
+  check_columns(con, "responses")
 
   if (created && !quiet) {
     cli::cli_alert_success("Survey schema created on {.val {class(con)[1]}}")
@@ -266,10 +267,39 @@ init_database <- function(con, quiet = FALSE) {
   invisible(target)
 }
 
-# An existing `responses` table must have every column that save_response()
-# writes. Otherwise the first insert would fail partway through a survey.
-check_response_columns <- function(con, call = rlang::caller_env()) {
-  expected <- c(
+# An existing table must have every column that the survey writes. Otherwise
+# the first write would fail partway through a survey.
+check_columns <- function(con, table, call = rlang::caller_env()) {
+  fields <- DBI::dbListFields(con, table)
+  missing <- setdiff(written_columns[[table]], fields)
+  if (length(missing) == 0) {
+    return(invisible(con))
+  }
+  renamed <- renamed_columns[[table]]
+  old <- names(renamed)[names(renamed) %in% fields & renamed %in% missing]
+  renames <- paste(old, "to", renamed[old])
+  added <- setdiff(missing, renamed[old])
+  cli::cli_abort(
+    c(
+      "The {.field {table}} table has no {cli::qty(missing)}column{?s} {.field {missing}}.",
+      "i" = "Use a new database, or change this one:",
+      "*" = if (length(old) > 0) "Rename {renames}.",
+      "*" = if (length(added) > 0) "Add {.field {added}}."
+    ),
+    call = call
+  )
+}
+
+# The columns that the survey writes to each table
+written_columns <- list(
+  sessions = c(
+    "completed_at",
+    "completed",
+    "retry_count",
+    "version",
+    "duration_seconds"
+  ),
+  responses = c(
     "session_id",
     "question_id",
     "question_order",
@@ -280,33 +310,17 @@ check_response_columns <- function(con, call = rlang::caller_env()) {
     "retry_attempt",
     "duration_seconds"
   )
-  fields <- DBI::dbListFields(con, "responses")
-  missing <- setdiff(expected, fields)
-  if (length(missing) == 0) {
-    return(invisible(con))
-  }
-  old <- names(renamed_columns)[
-    names(renamed_columns) %in% fields & renamed_columns %in% missing
-  ]
-  renames <- paste(old, "to", renamed_columns[old])
-  added <- setdiff(missing, renamed_columns[old])
-  cli::cli_abort(
-    c(
-      "The {.field responses} table has no {cli::qty(missing)}column{?s} {.field {missing}}.",
-      "i" = "Use a new database, or change this one:",
-      "*" = if (length(old) > 0) "Rename {renames}.",
-      "*" = if (length(added) > 0) "Add {.field {added}}."
-    ),
-    call = call
-  )
-}
+)
 
-# Old `responses` column names and their current names
-renamed_columns <- c(
-  answered_clearly = "valid",
-  input_raw = "answer_raw",
-  input_extracted = "answer_extracted",
-  question_duration_seconds = "duration_seconds"
+# Old column names and their current names, for each table
+renamed_columns <- list(
+  sessions = c(question_set_version = "version"),
+  responses = c(
+    answered_clearly = "valid",
+    input_raw = "answer_raw",
+    input_extracted = "answer_extracted",
+    question_duration_seconds = "duration_seconds"
+  )
 )
 
 # Row operations ----
@@ -319,7 +333,7 @@ start_session <- function(con, version = "1.0") {
   insert_returning_id(
     con,
     "sessions",
-    list(question_set_version = as.character(version)),
+    list(version = as.character(version)),
     "session_id"
   )
 }

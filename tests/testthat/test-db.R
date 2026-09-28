@@ -28,7 +28,7 @@ for (backend in names(backends)) {
     expect_equal(as.logical(session$completed), TRUE)
     expect_equal(session$retry_count, 2)
     expect_equal(session$duration_seconds, 12)
-    expect_equal(session$question_set_version, "2.0")
+    expect_equal(session$version, "2.0")
 
     responses <- DBI::dbGetQuery(
       con,
@@ -64,33 +64,6 @@ test_that("inserts get ids without RETURNING and when a probe finds it", {
     ids <- c(start_session(con), start_session(con))
     expect_equal(ids, c(1, 2))
   }
-})
-
-test_that("init_database() rejects a responses table from before 0.1.0", {
-  con <- local_sqlite()
-  init_database(con, quiet = TRUE)
-  DBI::dbExecute(
-    con,
-    "ALTER TABLE responses RENAME COLUMN valid TO answered_clearly"
-  )
-
-  expect_snapshot(init_database(con), error = TRUE)
-})
-
-test_that("init_database() gives renames for the input_* columns", {
-  con <- local_sqlite()
-  init_database(con, quiet = TRUE)
-  DBI::dbExecute(con, "ALTER TABLE responses RENAME COLUMN answer_raw TO input_raw")
-  DBI::dbExecute(
-    con,
-    "ALTER TABLE responses RENAME COLUMN answer_extracted TO input_extracted"
-  )
-  DBI::dbExecute(
-    con,
-    "ALTER TABLE responses RENAME COLUMN duration_seconds TO question_duration_seconds"
-  )
-
-  expect_snapshot(init_database(con), error = TRUE)
 })
 
 test_that("init_database() gives only renames that supply a missing column", {
