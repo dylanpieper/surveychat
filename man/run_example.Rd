@@ -18,9 +18,9 @@ value; the app runs until you stop it.
 }
 \description{
 Starts an example app that ships with the package. The \code{"icecream"} example
-asks about ice cream preferences with \code{\link[ellmer:chat_anthropic]{ellmer::chat_claude()}}, so it needs
-\code{ANTHROPIC_API_KEY}. It writes the answers to \code{survey.db} in the working
-directory with RSQLite.
+is the web page of an ice cream shop with a flavor survey in a side panel.
+It uses \code{\link[ellmer:chat_anthropic]{ellmer::chat_claude()}}, so it needs \code{ANTHROPIC_API_KEY}, and it
+stores the answers with RSQLite.
 }
 \examples{
 run_example(NULL)
