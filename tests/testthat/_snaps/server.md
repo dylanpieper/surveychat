@@ -1,3 +1,27 @@
+# survey_server() continues when the drawer function fails
+
+    Code
+      shiny::testServer(survey_server, args = list(survey = test_spec(), chat = chat,
+      con = con, drawer = function(answers, complete) stop("bad card")), {
+        session$setInputs(chat_greeting_requested = 1)
+        session$setInputs(chat_user_input = "Ana")
+        expect_match(as.character(output$progress$html), "Question 2 of 3")
+      })
+    Condition
+      Warning:
+      The survey could not fill the drawer.
+      Caused by error in `drawer()`:
+      ! bad card
+
+# survey_server() checks the drawer function
+
+    Code
+      survey_server("survey", test_spec(), fake_chat(), local_sqlite(), drawer = "card")
+    Condition
+      Error in `survey_server()`:
+      ! `drawer` must be `NULL` or a function, not a string.
+      i The function takes `answers` and `complete` and returns UI.
+
 # survey_server() locks the survey when the chat is not set up
 
     Code

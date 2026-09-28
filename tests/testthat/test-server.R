@@ -4,26 +4,18 @@ test_that("survey_server() starts the survey and advances on each reply", {
     list(name = "Ana", valid = TRUE),
     list(content = "x")
   )
-
-  # Record each message the server streams, with no real stream
-  sent <- character()
-  local_mocked_bindings(bot_response = function(message, ...) {
-    sent <<- c(sent, message)
-    message
-  })
-  local_mocked_bindings(
-    chat_append = function(id, response, ...) {
-      force(response)
-      promises::promise_resolve(NULL)
-    },
-    .package = "shinychat"
-  )
+  sent <- local_sent_messages()
 
   shiny::testServer(
     survey_server,
     args = list(survey = test_spec(), chat = chat, con = con),
     {
+      # Nothing starts until the chat shows on the screen
       session$flushReact()
+      expect_false(DBI::dbExistsTable(con, "sessions"))
+      expect_length(sent(), 0)
+
+      session$setInputs(chat_greeting_requested = 1)
       expect_equal(
         DBI::dbGetQuery(con, "SELECT COUNT(*) AS n FROM sessions")$n,
         1
@@ -32,19 +24,108 @@ test_that("survey_server() starts the survey and advances on each reply", {
 
       # The first question follows the welcome after a short delay
       deadline <- Sys.time() + 5
-      while (length(sent) < 2 && Sys.time() < deadline) {
+      while (length(sent()) < 2 && Sys.time() < deadline) {
         later::run_now(0.1)
       }
-      expect_equal(sent, c(test_spec()$messages$welcome, "Name?"))
+      expect_equal(sent(), c(test_spec()$messages$welcome, "Name?"))
 
       session$setInputs(chat_user_input = "I'm Ana")
       expect_match(as.character(output$progress$html), "Question 2 of 3")
-      expect_match(sent[3], "Ana, flavor?", fixed = TRUE)
+      expect_match(sent()[3], "Ana, flavor?", fixed = TRUE)
       expect_equal(
         DBI::dbGetQuery(con, "SELECT COUNT(*) AS n FROM responses")$n,
         1
       )
     }
+  )
+})
+
+test_that("survey_server() fills the closed drawer with each new answer", {
+  con <- local_sqlite()
+  chat <- fake_chat(
+    list(name = "??", valid = FALSE),
+    list(name = "Ana", valid = TRUE),
+    list(content = "x"),
+    list(flavor = "mint", valid = TRUE),
+    list(content = "Why?"),
+    list(why = "fresh", valid = TRUE)
+  )
+  sent <- local_sent_messages()
+  scoop_card <- function(answers, complete) {
+    paste(c(names(answers), if (complete) "done"), collapse = ",")
+  }
+
+  shiny::testServer(
+    survey_server,
+    args = list(
+      survey = test_spec(),
+      chat = chat,
+      con = con,
+      drawer = scoop_card
+    ),
+    {
+      session$setInputs(chat_greeting_requested = 1)
+      # A reply that is not valid adds no answer, so the drawer stays empty
+      session$setInputs(chat_user_input = "hmm")
+      expect_length(sent(drawer = TRUE), 0)
+      expect_equal(output$drawer_ready, "")
+
+      session$setInputs(chat_user_input = "Ana")
+      expect_equal(output$drawer_ready, "ready")
+      session$setInputs(chat_user_input = "mint")
+      session$setInputs(chat_user_input = "fresh")
+      session$setInputs(drawer_toggle = 1)
+    }
+  )
+
+  calls <- sent(drawer = TRUE)
+  expect_equal(
+    vapply(calls, \(call) call$type, character(1)),
+    c("update", "update", "update", "toggle")
+  )
+  expect_equal(
+    lapply(calls, \(call) call$content),
+    list("name", "name,flavor", "name,flavor,why,done", NULL)
+  )
+})
+
+test_that("survey_server() continues when the drawer function fails", {
+  con <- local_sqlite()
+  chat <- fake_chat(
+    list(name = "Ana", valid = TRUE),
+    list(content = "x")
+  )
+  sent <- local_sent_messages()
+
+  expect_snapshot(
+    shiny::testServer(
+      survey_server,
+      args = list(
+        survey = test_spec(),
+        chat = chat,
+        con = con,
+        drawer = \(answers, complete) stop("bad card")
+      ),
+      {
+        session$setInputs(chat_greeting_requested = 1)
+        session$setInputs(chat_user_input = "Ana")
+        expect_match(as.character(output$progress$html), "Question 2 of 3")
+      }
+    )
+  )
+  expect_length(sent(drawer = TRUE), 0)
+})
+
+test_that("survey_server() checks the drawer function", {
+  expect_snapshot(
+    survey_server(
+      "survey",
+      test_spec(),
+      fake_chat(),
+      local_sqlite(),
+      drawer = "card"
+    ),
+    error = TRUE
   )
 })
 

@@ -76,6 +76,128 @@ test_that("add_question() rejects bad input", {
   })
 })
 
+test_that("add_question() keeps enum values, preset, or generated choices", {
+  spec <- survey_spec()
+  enum <- ellmer::type_enum(c("cone", "cup"))
+  string <- ellmer::type_string()
+  choices_of <- function(...) {
+    add_question(spec, "a", text = "A?", ...)$questions[[1]]$choices
+  }
+
+  ideas <- prompt_llm("Ideas")
+
+  expect_null(choices_of(answer = string))
+  expect_equal(
+    choices_of(answer = enum),
+    list(prompt = NULL, fixed = c("cone", "cup"))
+  )
+  expect_equal(
+    choices_of(answer = enum, choices = "cone"),
+    list(prompt = NULL, fixed = "cone")
+  )
+  expect_equal(
+    choices_of(answer = string, choices = c("x", "y")),
+    list(prompt = NULL, fixed = c("x", "y"))
+  )
+  expect_equal(
+    choices_of(answer = string, choices = ideas),
+    list(prompt = ideas, fixed = NULL)
+  )
+  expect_equal(
+    choices_of(answer = string, choices = list(ideas, "None", c("x", "y"))),
+    list(prompt = ideas, fixed = c("None", "x", "y"))
+  )
+})
+
+test_that("extraction_schema() adds optional early fields with their question", {
+  spec <- test_spec()
+  first <- spec$questions[[1]]
+
+  expect_identical(extraction_schema(first, list(), list()), first$schema)
+
+  schema <- extraction_schema(first, spec$questions[2], list())
+  expect_named(schema@properties, c("name", "valid", "flavor"))
+  flavor <- schema@properties$flavor
+  expect_false(flavor@required)
+  # The current question's placeholder is named plainly, not as a bare id
+  expect_match(
+    flavor@description,
+    "\"(the answer to this question), flavor?\"",
+    fixed = TRUE
+  )
+  expect_match(flavor@description, "Flavor", fixed = TRUE)
+  # The default rule is not added; it could read as the current question's
+  expect_no_match(flavor@description, spec$config$valid, fixed = TRUE)
+  # The spec keeps its own answer types
+  expect_true(spec$questions[[2]]$answer@required)
+})
+
+test_that("an early field carries the later question's own valid rule", {
+  spec <- survey_spec() |>
+    add_question("name", text = "Name?", answer = ellmer::type_string()) |>
+    add_question(
+      "age",
+      text = "How old are you?",
+      answer = ellmer::type_integer(),
+      valid = "the age is 18 or older."
+    )
+
+  schema <- extraction_schema(spec$questions[[1]], spec$questions[2], list())
+  expect_match(
+    schema@properties$age@description,
+    "\"How old are you?\", and for that question the age is 18 or older. ",
+    fixed = TRUE
+  )
+})
+
+test_that("add_question() rejects bad choices", {
+  spec <- survey_spec()
+  answer <- ellmer::type_string()
+
+  expect_snapshot(error = TRUE, {
+    add_question(spec, "a", text = "A?", answer = answer, choices = 1:3)
+    add_question(spec, "a", text = "A?", answer = answer, choices = c("x", ""))
+    add_question(spec, "a", text = "A?", answer = answer, choices = character())
+    add_question(
+      spec,
+      "a",
+      text = "A?",
+      answer = answer,
+      choices = list(prompt_llm("x"), prompt_llm("y"))
+    )
+    add_question(spec, "a", text = "A?", answer = answer, choices = list(1))
+    add_question(
+      spec,
+      "a",
+      text = "A?",
+      answer = ellmer::type_enum(c("cone", "cup")),
+      choices = c("cone", "large")
+    )
+    add_question(
+      spec,
+      "a",
+      text = "A?",
+      answer = answer,
+      choices = prompt_llm("x", format = "{content}")
+    )
+  })
+})
+
+test_that("add_question() warns about placeholders in the choices prompt", {
+  spec <- survey_spec() |>
+    add_question("name", text = "Name?", answer = ellmer::type_string())
+
+  expect_snapshot(
+    add_question(
+      spec,
+      "flavor",
+      text = "Flavor?",
+      answer = ellmer::type_string(),
+      choices = prompt_llm("Ideas for {nme}")
+    )
+  )
+})
+
 test_that("add_question() warns about placeholders that name no earlier question", {
   spec <- survey_spec() |>
     add_question("name", text = "Name?", answer = ellmer::type_string())
@@ -130,6 +252,7 @@ test_that("set_messages() and set_config() reject bad values", {
     set_messages(survey_spec(), welcome = 1)
     set_config(survey_spec(), tries = 1.5)
     set_config(survey_spec(), character_delay = -1)
+    set_config(survey_spec(), skip_answered = "yes")
   })
 })
 
@@ -148,4 +271,18 @@ test_that("validate_spec() needs a question and a fixed first question", {
 
 test_that("print() lists each question with its tags", {
   expect_snapshot(print(test_spec()))
+  expect_snapshot(print(
+    test_spec() |>
+      add_question(
+        "serve",
+        text = "Serve?",
+        answer = ellmer::type_enum(c("cone", "cup"))
+      ) |>
+      add_question(
+        "topping",
+        text = "Topping?",
+        answer = ellmer::type_string(),
+        choices = prompt_llm("Toppings for {flavor}")
+      )
+  ))
 })

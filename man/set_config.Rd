@@ -11,7 +11,8 @@ set_config(
   character_delay = NULL,
   delay_variance = NULL,
   version = NULL,
-  valid = NULL
+  valid = NULL,
+  skip_answered = NULL
 )
 }
 \arguments{
@@ -31,6 +32,12 @@ simulated typing. Use \code{0} for no delay.}
 
 \item{valid}{The default condition for a valid answer. It applies to each
 \code{\link[=add_question]{add_question()}} call after this one that has no \code{valid} of its own.}
+
+\item{skip_answered}{Whether a reply can answer later questions. If \code{TRUE},
+the LLM also extracts clear answers to later fixed questions, and the
+survey records them and does not ask those questions. Adaptive questions
+are always asked. In the database, such an answer has no
+\code{question_text}, and \code{answer_raw} is the reply that gave it.}
 }
 \value{
 \code{spec} with the new config.

@@ -10,8 +10,17 @@
 #'   uses a copy with no history, so one chat can serve all users.
 #' @param con A DBI connection or a `pool::dbPool()`. The server makes the
 #'   tables with [init_database()] if they are not there.
+#' @param drawer `NULL`, or a function that fills the chat drawer. It takes
+#'   `answers`, a named list of the answers so far, and `complete`, `TRUE`
+#'   after the last answer, and returns UI. The drawer stays closed; its
+#'   toggle shows after the first answer. Use it with a
+#'   [shinychat::chat_drawer()] in [survey_chat_ui()].
 #' @return `survey_server()` returns no value; it is called for its side
 #'   effects.
+#' @section Start:
+#' The survey starts when the chat first shows on the screen. Then the server
+#' writes the session row and sends the welcome. A chat in a closed sidebar
+#' starts when the user opens the sidebar.
 #' @export
 #' @examplesIf interactive() && rlang::is_installed("RSQLite")
 #' library(shiny)
@@ -32,9 +41,10 @@
 #'   survey_server("survey", survey, chat, con)
 #' }
 #' shinyApp(ui, server)
-survey_server <- function(id, survey, chat, con) {
+survey_server <- function(id, survey, chat, con, drawer = NULL) {
   validate_spec(survey)
   check_backends(chat, con)
+  check_drawer_fn(drawer)
   config <- survey$config
 
   shiny::moduleServer(id, function(input, output, session) {
@@ -97,9 +107,46 @@ survey_server <- function(id, survey, chat, con) {
       progress(list(current = engine$progress()$current, complete = FALSE))
     }
 
-    # Starts once, when the session is live, and sends the first question as a
-    # separate message after the welcome
-    shiny::observe({
+    drawer_ready <- shiny::reactiveVal(FALSE)
+    output$drawer_ready <- shiny::renderText(
+      if (drawer_ready()) "ready" else ""
+    )
+    shiny::outputOptions(output, "drawer_ready", suspendWhenHidden = FALSE)
+    shiny::observeEvent(input$drawer_toggle, {
+      shinychat::chat_drawer_toggle("chat")
+    })
+
+    # Fills the drawer when there is a new answer or at the end. The drawer
+    # stays closed; its toggle shows once it has content. A failure is logged
+    # and the survey continues.
+    drawer_count <- 0
+    fill_drawer <- function(complete = FALSE) {
+      answers <- engine$answers_so_far()
+      if (is.null(drawer) || length(answers) == 0) {
+        return(invisible())
+      }
+      if (length(answers) == drawer_count && !complete) {
+        return(invisible())
+      }
+      drawer_count <<- length(answers)
+      content <- tryCatch(
+        drawer(answers, complete),
+        error = function(err) {
+          cli::cli_warn("The survey could not fill the drawer.", parent = err)
+          NULL
+        }
+      )
+      if (is.null(content)) {
+        return(invisible())
+      }
+      shinychat::chat_drawer_update("chat", content = content)
+      drawer_ready(TRUE)
+      invisible()
+    }
+
+    # Starts once, when the empty chat first shows on the screen, and sends
+    # the first question as a separate message after the welcome
+    shiny::observeEvent(input$chat_greeting_requested, {
       if (started) {
         return()
       }
@@ -131,6 +178,7 @@ survey_server <- function(id, survey, chat, con) {
         return()
       }
 
+      fill_drawer(complete = result$complete)
       if (result$complete) {
         progress(list(current = total, complete = TRUE))
         # Retire the input only after the closing message has streamed

@@ -1,3 +1,13 @@
+# a failed choice generation shows the question with no cards
+
+    Code
+      message <- engine$process_input("Ana")$message
+    Condition
+      Warning:
+      Choice generation failed for question "serve".
+      Caused by error:
+      ! API down
+
 # a failed intro shows the question alone
 
     Code

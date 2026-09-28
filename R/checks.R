@@ -43,6 +43,53 @@ check_number <- function(
   invisible(x)
 }
 
+check_bool <- function(
+  x,
+  arg = rlang::caller_arg(x),
+  call = rlang::caller_env()
+) {
+  if (!rlang::is_bool(x)) {
+    cli::cli_abort(
+      "{.arg {arg}} must be {.code TRUE} or {.code FALSE}, not {.obj_type_friendly {x}}.",
+      call = call
+    )
+  }
+  invisible(x)
+}
+
+# `FALSE` or a shinychat::chat_drawer() configuration
+check_drawer_config <- function(
+  x,
+  arg = rlang::caller_arg(x),
+  call = rlang::caller_env()
+) {
+  if (!isFALSE(x) && !inherits(x, "chat_drawer")) {
+    cli::cli_abort(
+      "{.arg {arg}} must be {.code FALSE} or a {.fn shinychat::chat_drawer}, not {.obj_type_friendly {x}}.",
+      call = call
+    )
+  }
+  invisible(x)
+}
+
+# `NULL` or a function of `answers` and `complete`
+check_drawer_fn <- function(
+  x,
+  arg = rlang::caller_arg(x),
+  call = rlang::caller_env()
+) {
+  if (!is.null(x) && !is.function(x)) {
+    cli::cli_abort(
+      c(
+        "{.arg {arg}} must be {.code NULL} or a function, not {.obj_type_friendly {x}}.",
+        "i" = "The function takes {.arg answers} and {.arg complete} and returns UI."
+      ),
+      call = call
+    )
+  }
+  invisible(x)
+}
+
 check_spec <- function(
   x,
   arg = rlang::caller_arg(x),
