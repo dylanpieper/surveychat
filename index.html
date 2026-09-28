@@ -85,7 +85,7 @@
 <p>The package includes a demo that collects the ice cream preferences of the user. The demo uses <code><a href="https://ellmer.tidyverse.org/reference/chat_anthropic.html" class="external-link">ellmer::chat_claude()</a></code>, which reads <code>ANTHROPIC_API_KEY</code>, and it writes the answers to <code>survey.db</code> in the working directory. Put the key in <code>~/.Renviron</code> (<code>usethis::edit_r_environ()</code>) and restart R.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">surveychat</span><span class="fu">::</span><span class="fu"><a href="reference/run_example.html">run_example</a></span><span class="op">(</span><span class="st">"icecream"</span><span class="op">)</span></span></code></pre></div>
-<p>The source of the demo is in <a href="inst/examples/icecream/app.R"><code>inst/examples/icecream/app.R</code></a>. Copy it to start your own survey.</p>
+<p>The source of the demo is in <a href="https://github.com/dylanpieper/surveychat/blob/main/inst/examples/icecream/app.R" class="external-link"><code>inst/examples/icecream/app.R</code></a>. Copy it to start your own survey.</p>
 </div>
 <div class="section level2">
 <h2 id="key-features">Key Features<a class="anchor" aria-label="anchor" href="#key-features"></a>
@@ -259,14 +259,6 @@
 </tr>
 </tbody>
 </table>
-<ul>
-<li>
-<strong>Audit:</strong> the raw and the extracted answers stay side by side, so you can examine the quality of the extraction after the survey.</li>
-<li>
-<strong>Indexes:</strong> they cover the queries by session, by question, and by order.</li>
-<li>
-<strong>Setup:</strong> the server makes the tables when a session starts and leaves existing tables alone. To make them before the first user arrives, call <code>init_database(con)</code>.</li>
-</ul>
 </div>
 <div class="section level2">
 <h2 id="analyze-the-data">Analyze the Data<a class="anchor" aria-label="anchor" href="#analyze-the-data"></a>
