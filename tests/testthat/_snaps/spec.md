@@ -83,6 +83,13 @@
       ! `choices` must be `NULL`, a character vector with no empty values, a `prompt_llm()`, or a list of one `prompt_llm()` and strings.
       x It is a list.
     Code
+      add_question(spec, "a", text = "A?", answer = ellmer::type_enum(c("cone", "cup")),
+      choices = c("cone", "large"))
+    Condition
+      Error in `add_question()`:
+      ! Each choice of an enum answer must be one of its values.
+      x "large" is not in "cone" and "cup".
+    Code
       add_question(spec, "a", text = "A?", answer = answer, choices = prompt_llm("x",
         format = "{content}"))
     Condition

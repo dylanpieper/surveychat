@@ -150,7 +150,7 @@ labels <- c(
 )
 
 scoop_card <- function(answers, complete) {
-  rows <- lapply(names(answers), \(id) {
+  rows <- lapply(intersect(names(labels), names(answers)), \(id) {
     tags$li(
       class = "list-group-item d-flex justify-content-between gap-3 px-0",
       tags$span(class = "text-body-secondary", labels[[id]]),
@@ -176,7 +176,6 @@ steps <- list(
   list("2", "We churn the top picks", "Our kitchen reads every answer."),
   list("3", "Taste the new batch", "Find it in the case next week.")
 )
-
 
 step_card <- function(step) {
   tags$div(

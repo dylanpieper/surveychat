@@ -115,14 +115,38 @@ test_that("extraction_schema() adds optional early fields with their question", 
 
   expect_identical(extraction_schema(first, list(), list()), first$schema)
 
-  schema <- extraction_schema(first, spec$questions[2], list(name = "Ana"))
+  schema <- extraction_schema(first, spec$questions[2], list())
   expect_named(schema@properties, c("name", "valid", "flavor"))
   flavor <- schema@properties$flavor
   expect_false(flavor@required)
-  expect_match(flavor@description, "\"Ana, flavor?\"", fixed = TRUE)
+  # The current question's placeholder is named plainly, not as a bare id
+  expect_match(
+    flavor@description,
+    "\"(the answer to this question), flavor?\"",
+    fixed = TRUE
+  )
   expect_match(flavor@description, "Flavor", fixed = TRUE)
+  expect_match(flavor@description, spec$config$valid, fixed = TRUE)
   # The spec keeps its own answer types
   expect_true(spec$questions[[2]]$answer@required)
+})
+
+test_that("an early field carries the later question's own valid rule", {
+  spec <- survey_spec() |>
+    add_question("name", text = "Name?", answer = ellmer::type_string()) |>
+    add_question(
+      "age",
+      text = "How old are you?",
+      answer = ellmer::type_integer(),
+      valid = "the age is 18 or older."
+    )
+
+  schema <- extraction_schema(spec$questions[[1]], spec$questions[2], list())
+  expect_match(
+    schema@properties$age@description,
+    "\"How old are you?\" and the age is 18 or older. ",
+    fixed = TRUE
+  )
 })
 
 test_that("add_question() rejects bad choices", {
@@ -141,6 +165,13 @@ test_that("add_question() rejects bad choices", {
       choices = list(prompt_llm("x"), prompt_llm("y"))
     )
     add_question(spec, "a", text = "A?", answer = answer, choices = list(1))
+    add_question(
+      spec,
+      "a",
+      text = "A?",
+      answer = ellmer::type_enum(c("cone", "cup")),
+      choices = c("cone", "large")
+    )
     add_question(
       spec,
       "a",

@@ -59,6 +59,14 @@ test_that("the drawer toggle sits beside the input with the drawer title", {
   )
 })
 
+test_that("two survey chats on one page add the styles once", {
+  head <- htmltools::renderTags(htmltools::tagList(
+    survey_chat_ui("a"),
+    survey_chat_ui("b")
+  ))$head
+  expect_length(gregexpr(".sb-progress {", head, fixed = TRUE)[[1]], 1)
+})
+
 test_that("survey_chat_ui() checks its arguments", {
   expect_snapshot(survey_chat_ui("survey", drawer = TRUE), error = TRUE)
   expect_snapshot(survey_chat_ui("survey", progress = "yes"), error = TRUE)

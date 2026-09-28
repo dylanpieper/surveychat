@@ -138,6 +138,27 @@ test_that("early answers are ignored while the reply is not valid", {
   expect_match(message[1], "Ana, flavor?", fixed = TRUE)
 })
 
+test_that("a reply kept after the last retry gives no early answers", {
+  con <- local_sqlite()
+  chat <- fake_chat(
+    list(name = "??", valid = FALSE, flavor = "mint"),
+    list(name = "??", valid = FALSE, flavor = "mint"),
+    list(content = "x")
+  )
+  engine <- SurveySession$new(test_spec(), chat, con)
+  engine$start()
+  engine$first_question()
+
+  engine$process_input("?? mint")
+  message <- engine$process_input("?? mint")$message
+  expect_match(message[1], "??, flavor?", fixed = TRUE)
+  expect_equal(engine$answers_so_far(), list(name = "??"))
+  expect_equal(
+    DBI::dbGetQuery(con, "SELECT question_id FROM responses")$question_id,
+    c("name", "name")
+  )
+})
+
 test_that("skip_answered = FALSE asks every question", {
   chat <- fake_chat(
     list(name = "Ana", valid = TRUE, flavor = "mint"),

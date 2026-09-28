@@ -104,7 +104,10 @@ SurveySession <- R6::R6Class(
       if (any(!is.na(answer))) {
         private$answers[[question$id]] <- answer
       }
-      private$take_early(later, extracted, user_input)
+      # A reply kept only because the retries ran out gives no early answers
+      if (valid) {
+        private$take_early(later, extracted, user_input)
+      }
       private$retry_count <- 0
       private$advance()
     },

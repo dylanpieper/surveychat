@@ -408,21 +408,28 @@ extraction_schema <- function(question, later, answers) {
   if (length(later) == 0) {
     return(question$schema)
   }
-  early <- lapply(later, \(other) early_type(other, answers))
+  # The current answer is not known yet, so its placeholder names it plainly
+  known <- utils::modifyList(
+    answers,
+    rlang::list2(!!question$id := "(the answer to this question)")
+  )
+  early <- lapply(later, \(other) early_type(other, known))
   names(early) <- vapply(later, \(other) other$id, character(1))
   do.call(ellmer::type_object, c(question$schema@properties, early))
 }
 
-# A later question's answer type, made optional, with its question in the
-# description so the LLM fills it only for a clear answer
+# A later question's answer type, made optional, with its question and its
+# valid rule in the description so the LLM fills it only for a clear answer
+# that the question would accept
 early_type <- function(question, answers) {
   type <- question$answer
   type@required <- FALSE
   type@description <- paste(
     c(
       sprintf(
-        "Fill only if the reply clearly answers the later question \"%s\".",
-        interpolate(question$text, answers)
+        "Fill only if the reply clearly answers the later question \"%s\" and %s.",
+        interpolate(question$text, answers),
+        sub("[.[:space:]]+$", "", question$valid)
       ),
       type@description,
       "Otherwise omit this field."
@@ -503,6 +510,18 @@ question_choices <- function(
     cli::cli_abort("{.arg choices} cannot have a {.arg format}.", call = call)
   }
   fixed <- unlist(parts[is_fixed], use.names = FALSE)
+  if (inherits(answer, "ellmer::TypeEnum")) {
+    unknown <- setdiff(fixed, answer@values)
+    if (length(unknown) > 0) {
+      cli::cli_abort(
+        c(
+          "Each choice of an enum answer must be one of its values.",
+          "x" = "{.val {unknown}} {?is/are} not in {.val {answer@values}}."
+        ),
+        call = call
+      )
+    }
+  }
   list(prompt = prompt, fixed = if (length(fixed)) fixed)
 }
 

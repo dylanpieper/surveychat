@@ -108,7 +108,9 @@ survey_chat_ui <- function(
     )
   }
   htmltools::tagList(
-    htmltools::tags$head(htmltools::tags$style(htmltools::HTML(styles))),
+    htmltools::singleton(
+      htmltools::tags$head(htmltools::tags$style(htmltools::HTML(styles)))
+    ),
     shinychat::chat_ui(
       id = ns("chat"),
       class = "sb-chat",
