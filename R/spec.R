@@ -418,18 +418,25 @@ extraction_schema <- function(question, later, answers) {
   do.call(ellmer::type_object, c(question$schema@properties, early))
 }
 
-# A later question's answer type, made optional, with its question and its
-# valid rule in the description so the LLM fills it only for a clear answer
-# that the question would accept
+# A later question's answer type, made optional, with its question in the
+# description so the LLM fills it only for a clear answer. A question with
+# its own valid rule adds that rule; the default rule adds nothing to
+# "clearly answers".
 early_type <- function(question, answers) {
   type <- question$answer
   type@required <- FALSE
+  rule <- if (question$own_valid) {
+    sprintf(
+      ", and for that question %s",
+      sub("[.[:space:]]+$", "", question$valid)
+    )
+  }
   type@description <- paste(
     c(
       sprintf(
-        "Fill only if the reply clearly answers the later question \"%s\" and %s.",
+        "Fill only if the reply clearly answers the later question \"%s\"%s.",
         interpolate(question$text, answers),
-        sub("[.[:space:]]+$", "", question$valid)
+        rule %||% ""
       ),
       type@description,
       "Otherwise omit this field."

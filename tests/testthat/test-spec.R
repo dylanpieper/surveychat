@@ -126,7 +126,8 @@ test_that("extraction_schema() adds optional early fields with their question", 
     fixed = TRUE
   )
   expect_match(flavor@description, "Flavor", fixed = TRUE)
-  expect_match(flavor@description, spec$config$valid, fixed = TRUE)
+  # The default rule is not added; it could read as the current question's
+  expect_no_match(flavor@description, spec$config$valid, fixed = TRUE)
   # The spec keeps its own answer types
   expect_true(spec$questions[[2]]$answer@required)
 })
@@ -144,7 +145,7 @@ test_that("an early field carries the later question's own valid rule", {
   schema <- extraction_schema(spec$questions[[1]], spec$questions[2], list())
   expect_match(
     schema@properties$age@description,
-    "\"How old are you?\" and the age is 18 or older. ",
+    "\"How old are you?\", and for that question the age is 18 or older. ",
     fixed = TRUE
   )
 })
