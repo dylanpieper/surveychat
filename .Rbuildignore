@@ -7,6 +7,5 @@
 ^pkgdown$
 ^\.claude$
 ^survey\.db$
-^inst/images$
 ^vignettes/articles$
 ^\.github$
