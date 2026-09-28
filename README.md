@@ -18,12 +18,12 @@ surveychat::run_example("icecream")
 
 <img src="man/figures/icecream.png" alt="The web page of an ice cream shop. A side panel on the right shows the flavor survey chat, which asks for the name of the user and shows a card to stay anonymous." width="100%"/>
 
-The source of the demo is in [`inst/examples/icecream/app.R`](https://github.com/dylanpieper/surveychat/blob/main/inst/examples/icecream/app.R). Copy it to start your own survey.
+The source is in [`inst/examples/icecream/app.R`](https://github.com/dylanpieper/surveychat/blob/main/inst/examples/icecream/app.R). Copy it to start your own survey.
 
 ## Key Features
 
 -   **LLM extraction** with structured schemas that validate and retry invalid answers, and that record answers to later questions so the survey does not ask again
--   **Adaptive questions and generated content**, such as a fun fact, from the earlier answers of the user
+-   **Adaptive questions and generated content** based on the previous answers of the user
 -   **Choice cards** from a fixed list, an enum, or the LLM; the user can also type an answer
 -   **SQL storage** of raw and extracted answers, retry counts, and timings
 -   **Chat UI** as a full page or in any layout, such as a sidebar, with a progress cue and an optional drawer for the answers
