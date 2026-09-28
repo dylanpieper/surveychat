@@ -4,7 +4,15 @@
 \alias{add_question}
 \title{Add a question to a survey spec}
 \usage{
-add_question(spec, id, text, answer, valid = NULL, intro = NULL)
+add_question(
+  spec,
+  id,
+  text,
+  answer,
+  valid = NULL,
+  intro = NULL,
+  choices = NULL
+)
 }
 \arguments{
 \item{spec}{A survey spec from \code{\link[=survey_spec]{survey_spec()}}.}
@@ -24,6 +32,15 @@ the default from \code{\link[=set_config]{set_config()}} at the time of this cal
 
 \item{intro}{An optional \code{\link[=prompt_llm]{prompt_llm()}} with a \code{format}. The LLM generates
 content that the survey shows before the question.}
+
+\item{choices}{Clickable answer cards below the question. \code{NULL} shows the
+values of an \code{\link[ellmer:type_boolean]{ellmer::type_enum()}} and no cards for other types. A
+character vector shows those choices. A \code{\link[=prompt_llm]{prompt_llm()}} makes the LLM
+write the choices from the earlier answers; the \code{suggested} message of
+\code{\link[=set_messages]{set_messages()}} tells the user that they are from the LLM. A list of one
+\code{\link[=prompt_llm]{prompt_llm()}} and strings, such as
+\code{list(prompt_llm("Suggest 2 toppings"), "No topping")}, always shows the
+strings after the generated choices. The user can also type an answer.}
 }
 \value{
 \code{spec} with the question added at the end.
@@ -39,6 +56,9 @@ asks again, up to \code{tries} times (see \code{\link[=set_config]{set_config()}
 \code{text}, the prompts, and the \code{format} of \code{intro} can use \code{{id}} placeholders
 for the answers to earlier questions. A placeholder that does not name an
 earlier question gives a warning, because the user would see the raw name.
+Use \code{{id|fallback}} for an answer that the user can skip, such as an
+optional name from \code{ellmer::type_string(required = FALSE)}: a skipped answer
+shows \code{fallback}.
 }
 
 \examples{

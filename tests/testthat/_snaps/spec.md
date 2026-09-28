@@ -49,6 +49,60 @@
       Error in `add_question()`:
       ! `intro` needs a `format` that places `{content}`.
 
+# add_question() rejects bad choices
+
+    Code
+      add_question(spec, "a", text = "A?", answer = answer, choices = 1:3)
+    Condition
+      Error in `add_question()`:
+      ! `choices` must be `NULL`, a character vector with no empty values, a `prompt_llm()`, or a list of one `prompt_llm()` and strings.
+      x It is an integer vector.
+    Code
+      add_question(spec, "a", text = "A?", answer = answer, choices = c("x", ""))
+    Condition
+      Error in `add_question()`:
+      ! `choices` must be `NULL`, a character vector with no empty values, a `prompt_llm()`, or a list of one `prompt_llm()` and strings.
+      x It is a character vector.
+    Code
+      add_question(spec, "a", text = "A?", answer = answer, choices = character())
+    Condition
+      Error in `add_question()`:
+      ! `choices` must be `NULL`, a character vector with no empty values, a `prompt_llm()`, or a list of one `prompt_llm()` and strings.
+      x It is an empty character vector.
+    Code
+      add_question(spec, "a", text = "A?", answer = answer, choices = list(prompt_llm(
+        "x"), prompt_llm("y")))
+    Condition
+      Error in `add_question()`:
+      ! `choices` must be `NULL`, a character vector with no empty values, a `prompt_llm()`, or a list of one `prompt_llm()` and strings.
+      x It is a list.
+    Code
+      add_question(spec, "a", text = "A?", answer = answer, choices = list(1))
+    Condition
+      Error in `add_question()`:
+      ! `choices` must be `NULL`, a character vector with no empty values, a `prompt_llm()`, or a list of one `prompt_llm()` and strings.
+      x It is a list.
+    Code
+      add_question(spec, "a", text = "A?", answer = answer, choices = prompt_llm("x",
+        format = "{content}"))
+    Condition
+      Error in `add_question()`:
+      ! `choices` cannot have a `format`.
+
+# add_question() warns about placeholders in the choices prompt
+
+    Code
+      add_question(spec, "flavor", text = "Flavor?", answer = ellmer::type_string(),
+      choices = prompt_llm("Ideas for {nme}"))
+    Condition
+      Warning:
+      Question flavor uses placeholder `{nme}` that does not name an earlier question.
+      i The user will see the raw name. Check the spelling and the order of the questions.
+    Output
+      <surveychat_spec> version "1.0", 2 questions
+      1. name
+      2. flavor [generated choices]
+
 # add_question() warns about placeholders that name no earlier question
 
     Code
@@ -92,6 +146,11 @@
     Condition
       Error in `set_config()`:
       ! `character_delay` must be a non-negative number, not -1.
+    Code
+      set_config(survey_spec(), skip_answered = "yes")
+    Condition
+      Error in `set_config()`:
+      ! `skip_answered` must be `TRUE` or `FALSE`, not a string.
 
 # validate_spec() needs a question and a fixed first question
 
@@ -126,4 +185,18 @@
       1. name
       2. flavor [intro]
       3. why [adaptive]
+
+---
+
+    Code
+      print(add_question(add_question(test_spec(), "serve", text = "Serve?", answer = ellmer::type_enum(
+        c("cone", "cup"))), "topping", text = "Topping?", answer = ellmer::type_string(),
+      choices = prompt_llm("Toppings for {flavor}")))
+    Output
+      <surveychat_spec> version "1.0", 5 questions
+      1. name
+      2. flavor [intro]
+      3. why [adaptive]
+      4. serve [choices]
+      5. topping [generated choices]
 

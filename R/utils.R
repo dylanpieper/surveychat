@@ -2,9 +2,10 @@
 
 placeholder_pattern <- "\\{([^}]+)\\}"
 
-# Replaces each {name} in `template` with `data[[name]]`. A missing value
-# leaves the bare name, so a template never fails. With `capitalize = TRUE`, a
-# value that starts a sentence gets an uppercase first letter.
+# Replaces each {name} in `template` with `data[[name]]`. A missing value (such
+# as a skipped answer) uses the fallback of {name|fallback}, or else leaves the
+# bare name, so a template never fails. With `capitalize = TRUE`, a value that
+# starts a sentence gets an uppercase first letter.
 interpolate <- function(template, data, capitalize = FALSE) {
   if (is.null(template)) {
     return(template)
@@ -20,13 +21,21 @@ interpolate <- function(template, data, capitalize = FALSE) {
 
   # Right to left, so earlier positions stay valid after each replacement
   for (i in rev(seq_along(starts))) {
-    name <- substr(template, starts[i] + 1, ends[i] - 1)
-    value <- data[[name]]
+    placeholder <- parse_placeholder(
+      substr(template, starts[i] + 1, ends[i] - 1)
+    )
+    value <- data[[placeholder$name]]
+    value <- value[!is.na(value)]
     found <- length(value) > 0
-    replacement <- if (found) paste(value, collapse = ", ") else name
+    replacement <- if (found) {
+      paste(value, collapse = ", ")
+    } else {
+      placeholder$fallback %||% placeholder$name
+    }
+    filled <- found || !is.null(placeholder$fallback)
 
     before <- substr(result, 1, starts[i] - 1)
-    if (capitalize && found && grepl("(^|[.!?]\\s*)$", before)) {
+    if (capitalize && filled && grepl("(^|[.!?]\\s*)$", before)) {
       replacement <- capitalize_first(replacement)
     }
     result <- paste0(
@@ -45,7 +54,37 @@ extract_variables <- function(template) {
     return(character(0))
   }
   matches <- regmatches(template, gregexpr(placeholder_pattern, template))[[1]]
-  gsub("[{}]", "", matches)
+  vapply(
+    gsub("[{}]", "", matches),
+    \(inner) parse_placeholder(inner)$name,
+    character(1),
+    USE.NAMES = FALSE
+  )
+}
+
+# Splits "name|fallback" into its parts. `fallback` is NULL if there is no bar.
+parse_placeholder <- function(inner) {
+  bar <- regexpr("|", inner, fixed = TRUE)
+  if (bar == -1) {
+    return(list(name = trimws(inner), fallback = NULL))
+  }
+  list(
+    name = trimws(substr(inner, 1, bar - 1)),
+    fallback = substr(inner, bar + 1, nchar(inner))
+  )
+}
+
+# Markdown for a grid of shinychat suggestion cards, one for each choice. A
+# click sends the choice as the reply. NULL for no choices.
+suggestion_cards <- function(choices) {
+  if (length(choices) == 0) {
+    return(NULL)
+  }
+  spans <- sprintf(
+    '* <span class="suggestion">%s</span>',
+    htmltools::htmlEscape(choices)
+  )
+  paste(spans, collapse = "\n")
 }
 
 capitalize_first <- function(text) {

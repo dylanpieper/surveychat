@@ -47,6 +47,9 @@ survey_spec <- function(version = "1.0") {
 #' `text`, the prompts, and the `format` of `intro` can use `{id}` placeholders
 #' for the answers to earlier questions. A placeholder that does not name an
 #' earlier question gives a warning, because the user would see the raw name.
+#' Use `{id|fallback}` for an answer that the user can skip, such as an
+#' optional name from `ellmer::type_string(required = FALSE)`: a skipped answer
+#' shows `fallback`.
 #'
 #' @param spec A survey spec from [survey_spec()].
 #' @param id The question id. It is the name of the extracted field and the
@@ -60,6 +63,14 @@ survey_spec <- function(version = "1.0") {
 #'   the default from [set_config()] at the time of this call.
 #' @param intro An optional [prompt_llm()] with a `format`. The LLM generates
 #'   content that the survey shows before the question.
+#' @param choices Clickable answer cards below the question. `NULL` shows the
+#'   values of an [ellmer::type_enum()] and no cards for other types. A
+#'   character vector shows those choices. A [prompt_llm()] makes the LLM
+#'   write the choices from the earlier answers; the `suggested` message of
+#'   [set_messages()] tells the user that they are from the LLM. A list of one
+#'   [prompt_llm()] and strings, such as
+#'   `list(prompt_llm("Suggest 2 toppings"), "No topping")`, always shows the
+#'   strings after the generated choices. The user can also type an answer.
 #' @return `spec` with the question added at the end.
 #' @export
 #' @examples
@@ -92,7 +103,8 @@ add_question <- function(
   text,
   answer,
   valid = NULL,
-  intro = NULL
+  intro = NULL,
+  choices = NULL
 ) {
   check_spec(spec)
   known <- question_ids(spec)
@@ -128,6 +140,8 @@ add_question <- function(
     intro = intro,
     valid = valid,
     own_valid = own_valid,
+    answer = answer,
+    choices = question_choices(choices, answer),
     schema = answer_schema(id, answer, valid)
   )
   where <- paste("Question", id)
@@ -177,6 +191,8 @@ prompt_llm <- function(prompt, format = NULL) {
 #' @param closed The text that replaces the chat input after the survey.
 #' @param locked The text that replaces the chat input when the chat is not
 #'   set up, for example when the API key is missing.
+#' @param suggested The note before choices that the LLM writes. See the
+#'   `choices` argument of [add_question()].
 #' @return `spec` with the new messages.
 #' @export
 #' @examples
@@ -188,7 +204,8 @@ set_messages <- function(
   retry = NULL,
   completion = NULL,
   closed = NULL,
-  locked = NULL
+  locked = NULL,
+  suggested = NULL
 ) {
   check_spec(spec)
   given <- compact(list(
@@ -196,7 +213,8 @@ set_messages <- function(
     retry = retry,
     completion = completion,
     closed = closed,
-    locked = locked
+    locked = locked,
+    suggested = suggested
   ))
   for (name in names(given)) {
     check_string(given[[name]], arg = name)
@@ -219,6 +237,11 @@ set_messages <- function(
 #' @param version The version of the question set.
 #' @param valid The default condition for a valid answer. It applies to each
 #'   [add_question()] call after this one that has no `valid` of its own.
+#' @param skip_answered Whether a reply can answer later questions. If `TRUE`,
+#'   the LLM also extracts clear answers to later fixed questions, and the
+#'   survey records them and does not ask those questions. Adaptive questions
+#'   are always asked. In the database, such an answer has no
+#'   `question_text`, and `answer_raw` is the reply that gave it.
 #' @return `spec` with the new config.
 #' @export
 #' @examples
@@ -231,9 +254,13 @@ set_config <- function(
   character_delay = NULL,
   delay_variance = NULL,
   version = NULL,
-  valid = NULL
+  valid = NULL,
+  skip_answered = NULL
 ) {
   check_spec(spec)
+  if (!is.null(skip_answered)) {
+    check_bool(skip_answered)
+  }
   if (!is.null(tries)) {
     check_number(tries, whole = TRUE)
   }
@@ -259,7 +286,8 @@ set_config <- function(
     character_delay = character_delay,
     delay_variance = delay_variance,
     version = version,
-    valid = valid
+    valid = valid,
+    skip_answered = skip_answered
   ))
   spec$config <- utils::modifyList(spec$config, given)
   spec
@@ -276,6 +304,11 @@ print.surveychat_spec <- function(x, ...) {
     tags <- c(
       if (is_adaptive(question)) "adaptive",
       if (!is.null(question$intro)) "intro",
+      if (!is.null(question$choices$prompt)) {
+        "generated choices"
+      } else if (!is.null(question$choices)) {
+        "choices"
+      },
       if (question$own_valid) "own rule"
     )
     tags <- if (length(tags)) paste0(" [", paste(tags, collapse = ", "), "]")
@@ -323,7 +356,8 @@ default_messages <- function() {
     retry = "Sorry, I didn't quite get that. Could you try again?",
     completion = "Thank you! Your answers are recorded.",
     closed = "Survey complete. Thank you!",
-    locked = "This survey is not available right now."
+    locked = "This survey is not available right now.",
+    suggested = "*Ideas from AI. Pick one or type your own.*"
   )
 }
 
@@ -337,7 +371,8 @@ default_config <- function() {
     valid = paste(
       "the reply answers the question, even if it is brief, informal, or",
       "unconventional, and it is not off-topic, rude, or nonsense"
-    )
+    ),
+    skip_answered = TRUE
   )
 }
 
@@ -367,6 +402,36 @@ check_id <- function(id, known, call = rlang::caller_env()) {
   invisible(id)
 }
 
+# The schema for one reply: the question's own schema, plus an optional field
+# for each later question that the reply can answer early
+extraction_schema <- function(question, later, answers) {
+  if (length(later) == 0) {
+    return(question$schema)
+  }
+  early <- lapply(later, \(other) early_type(other, answers))
+  names(early) <- vapply(later, \(other) other$id, character(1))
+  do.call(ellmer::type_object, c(question$schema@properties, early))
+}
+
+# A later question's answer type, made optional, with its question in the
+# description so the LLM fills it only for a clear answer
+early_type <- function(question, answers) {
+  type <- question$answer
+  type@required <- FALSE
+  type@description <- paste(
+    c(
+      sprintf(
+        "Fill only if the reply clearly answers the later question \"%s\".",
+        interpolate(question$text, answers)
+      ),
+      type@description,
+      "Otherwise omit this field."
+    ),
+    collapse = " "
+  )
+  type
+}
+
 # The author writes `valid` as a condition; the flag description turns it into
 # the TRUE/FALSE instruction for the LLM
 answer_schema <- function(id, answer, valid) {
@@ -391,8 +456,54 @@ is_adaptive <- function(question) {
 question_templates <- function(question) {
   c(
     if (is_adaptive(question)) question$text$prompt else question$text,
-    question$intro$prompt
+    question$intro$prompt,
+    question$choices$prompt$prompt
   )
+}
+
+# The choices of a question as `list(prompt, fixed)`: an optional prompt_llm()
+# for generated choices and the fixed choices. NULL if there are none.
+question_choices <- function(
+  choices,
+  answer,
+  call = rlang::caller_env()
+) {
+  if (is.null(choices)) {
+    if (!inherits(answer, "ellmer::TypeEnum")) {
+      return(NULL)
+    }
+    return(list(prompt = NULL, fixed = answer@values))
+  }
+  parts <- if (
+    is.character(choices) || inherits(choices, "surveychat_prompt")
+  ) {
+    list(choices)
+  } else if (is.list(choices) && !is.object(choices)) {
+    choices
+  } else {
+    list(NULL)
+  }
+  is_prompt <- vapply(parts, \(x) inherits(x, "surveychat_prompt"), logical(1))
+  is_fixed <- vapply(
+    parts,
+    \(x) is.character(x) && length(x) > 0 && !anyNA(x) && all(nzchar(x)),
+    logical(1)
+  )
+  if (length(parts) == 0 || !all(is_prompt | is_fixed) || sum(is_prompt) > 1) {
+    cli::cli_abort(
+      c(
+        "{.arg choices} must be {.code NULL}, a character vector with no empty values, a {.fn prompt_llm}, or a list of one {.fn prompt_llm} and strings.",
+        "x" = "It is {.obj_type_friendly {choices}}."
+      ),
+      call = call
+    )
+  }
+  prompt <- if (any(is_prompt)) parts[[which(is_prompt)]]
+  if (!is.null(prompt$format)) {
+    cli::cli_abort("{.arg choices} cannot have a {.arg format}.", call = call)
+  }
+  fixed <- unlist(parts[is_fixed], use.names = FALSE)
+  list(prompt = prompt, fixed = if (length(fixed)) fixed)
 }
 
 warn_placeholders <- function(templates, known, where) {

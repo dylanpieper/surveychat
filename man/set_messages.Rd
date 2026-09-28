@@ -10,7 +10,8 @@ set_messages(
   retry = NULL,
   completion = NULL,
   closed = NULL,
-  locked = NULL
+  locked = NULL,
+  suggested = NULL
 )
 }
 \arguments{
@@ -27,6 +28,9 @@ placeholders for any answer.}
 
 \item{locked}{The text that replaces the chat input when the chat is not
 set up, for example when the API key is missing.}
+
+\item{suggested}{The note before choices that the LLM writes. See the
+\code{choices} argument of \code{\link[=add_question]{add_question()}}.}
 }
 \value{
 \code{spec} with the new messages.
