@@ -13,6 +13,7 @@ reference:
 - title: Run it
   contents:
   - survey_server
+  - survey_chat_ui
   - run_example
 - title: Storage
   contents: init_database

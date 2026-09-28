@@ -5,7 +5,7 @@
 \alias{survey_ui}
 \title{Run a survey in a Shiny app}
 \usage{
-survey_server(id, survey, chat, con)
+survey_server(id, survey, chat, con, drawer = NULL)
 
 survey_ui(id, title = "Survey")
 }
@@ -19,6 +19,12 @@ uses a copy with no history, so one chat can serve all users.}
 
 \item{con}{A DBI connection or a \code{pool::dbPool()}. The server makes the
 tables with \code{\link[=init_database]{init_database()}} if they are not there.}
+
+\item{drawer}{\code{NULL}, or a function that fills the chat drawer. It takes
+\code{answers}, a named list of the answers so far, and \code{complete}, \code{TRUE}
+after the last answer, and returns UI. The drawer stays closed; its
+toggle shows after the first answer. Use it with a
+\code{\link[shinychat:chat_drawer]{shinychat::chat_drawer()}} in \code{\link[=survey_chat_ui]{survey_chat_ui()}}.}
 
 \item{title}{The title in the card header.}
 }
@@ -34,6 +40,13 @@ cue, and a footer that shows the closing message.
 same \code{id}. The app owns the chat and the connection: it makes them, passes
 them in, and closes the connection when it stops.
 }
+\section{Start}{
+
+The survey starts when the chat first shows on the screen. Then the server
+writes the session row and sends the welcome. A chat in a closed sidebar
+starts when the user opens the sidebar.
+}
+
 \examples{
 \dontshow{if (interactive() && rlang::is_installed("RSQLite")) withAutoprint(\{ # examplesIf}
 library(shiny)

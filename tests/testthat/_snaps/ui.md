@@ -44,6 +44,22 @@
         <span>Unavailable</span>
       </div>
 
+# survey_chat_ui() checks its arguments
+
+    Code
+      survey_chat_ui("survey", drawer = TRUE)
+    Condition
+      Error in `survey_chat_ui()`:
+      ! `drawer` must be `FALSE` or a `shinychat::chat_drawer()`, not `TRUE`.
+
+---
+
+    Code
+      survey_chat_ui("survey", progress = "yes")
+    Condition
+      Error in `survey_chat_ui()`:
+      ! `progress` must be `TRUE` or `FALSE`, not a string.
+
 # run_example() lists the examples and rejects an unknown name
 
     Code
