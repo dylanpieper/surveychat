@@ -123,6 +123,10 @@ that come after it in the pipe.</p>
 <p>The questions, the prompts, and the messages use the same
 <code>{id}</code> syntax for earlier answers. A value at the start of a
 sentence gets an uppercase first letter.</p>
+<p>For an answer that the user can skip, such as a name from
+<code>type_string(required = FALSE)</code>, add a fallback after a bar:
+<code>"Hey {name|there}!"</code> shows “Hey there!” when the user stays
+anonymous.</p>
 <p><code><a href="../reference/add_question.html">add_question()</a></code> warns when a placeholder does not name an
 earlier question, so a typo shows before a user sees it:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
@@ -204,9 +208,44 @@ keeps the text that the user saw in <code>question_text</code>.</p>
 yet for its prompt.</p>
 </div>
 <div class="section level2">
+<h2 id="choices">Choices<a class="anchor" aria-label="anchor" href="#choices"></a>
+</h2>
+<p><code>choices</code> shows clickable cards below a question. The user
+can click a card or type an answer. An enum answer shows its values with
+no extra code.</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">survey</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/survey_spec.html">survey_spec</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="../reference/add_question.html">add_question</a></span><span class="op">(</span></span>
+<span>    <span class="st">"flavor"</span>,</span>
+<span>    text <span class="op">=</span> <span class="st">"What's your favorite ice cream flavor?"</span>,</span>
+<span>    answer <span class="op">=</span> <span class="fu"><a href="https://ellmer.tidyverse.org/reference/type_boolean.html" class="external-link">type_string</a></span><span class="op">(</span><span class="st">"The flavor"</span><span class="op">)</span></span>
+<span>  <span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="../reference/add_question.html">add_question</a></span><span class="op">(</span></span>
+<span>    <span class="st">"topping"</span>,</span>
+<span>    text <span class="op">=</span> <span class="st">"Do you add anything to your {flavor}, or keep it plain?"</span>,</span>
+<span>    answer <span class="op">=</span> <span class="fu"><a href="https://ellmer.tidyverse.org/reference/type_boolean.html" class="external-link">type_string</a></span><span class="op">(</span><span class="st">"The topping, or 'none'"</span><span class="op">)</span>,</span>
+<span>    choices <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>      <span class="fu"><a href="../reference/prompt_llm.html">prompt_llm</a></span><span class="op">(</span><span class="st">"Suggest exactly 2 common toppings for {flavor} ice cream."</span><span class="op">)</span>,</span>
+<span>      <span class="st">"Keep it plain"</span></span>
+<span>    <span class="op">)</span></span>
+<span>  <span class="op">)</span></span></code></pre></div>
+<p>The LLM ideas come after a note that they are from AI
+(<code>set_messages(suggested = )</code>). The fixed strings follow in
+their own list, so they show even if the generation fails.</p>
+</div>
+<div class="section level2">
+<h2 id="answers-given-early">Answers given early<a class="anchor" aria-label="anchor" href="#answers-given-early"></a>
+</h2>
+<p>Users often answer more than one question at a time, such as “mint
+chip in a cone”. The LLM then also extracts clear answers to later fixed
+questions, and the survey does not ask them. Adaptive questions are
+always asked. Use <code>set_config(skip_answered = FALSE)</code> to ask
+every question.</p>
+</div>
+<div class="section level2">
 <h2 id="messages-and-config">Messages and config<a class="anchor" aria-label="anchor" href="#messages-and-config"></a>
 </h2>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">survey</span> <span class="op">&lt;-</span> <span class="va">survey</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu"><a href="../reference/set_messages.html">set_messages</a></span><span class="op">(</span></span>
 <span>    welcome <span class="op">=</span> <span class="st">"Hi! Three quick questions about ice cream."</span>,</span>
@@ -228,7 +267,7 @@ yet for its prompt.</p>
 <td><code><a href="../reference/set_messages.html">set_messages()</a></code></td>
 <td>
 <code>welcome</code>, <code>retry</code>, <code>completion</code>,
-<code>closed</code>, <code>locked</code>
+<code>closed</code>, <code>locked</code>, <code>suggested</code>
 </td>
 </tr>
 <tr class="even">
@@ -236,7 +275,8 @@ yet for its prompt.</p>
 <td>
 <code>tries</code>, <code>response_delay</code>,
 <code>character_delay</code>, <code>delay_variance</code>,
-<code>version</code>, <code>valid</code>
+<code>version</code>, <code>valid</code>,
+<code>skip_answered</code>
 </td>
 </tr>
 </tbody>

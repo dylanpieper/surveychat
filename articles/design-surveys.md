@@ -50,6 +50,10 @@ The questions, the prompts, and the messages use the same `{id}` syntax
 for earlier answers. A value at the start of a sentence gets an
 uppercase first letter.
 
+For an answer that the user can skip, such as a name from
+`type_string(required = FALSE)`, add a fallback after a bar:
+`"Hey {name|there}!"` shows “Hey there!” when the user stays anonymous.
+
 [`add_question()`](https://dylanpieper.github.io/surveychat/reference/add_question.md)
 warns when a placeholder does not name an earlier question, so a typo
 shows before a user sees it:
@@ -121,6 +125,43 @@ If a generation fails, the survey gives a warning and continues:
 The first question cannot be adaptive, because there are no answers yet
 for its prompt.
 
+## Choices
+
+`choices` shows clickable cards below a question. The user can click a
+card or type an answer. An enum answer shows its values with no extra
+code.
+
+``` r
+
+survey <- survey_spec() |>
+  add_question(
+    "flavor",
+    text = "What's your favorite ice cream flavor?",
+    answer = type_string("The flavor")
+  ) |>
+  add_question(
+    "topping",
+    text = "Do you add anything to your {flavor}, or keep it plain?",
+    answer = type_string("The topping, or 'none'"),
+    choices = list(
+      prompt_llm("Suggest exactly 2 common toppings for {flavor} ice cream."),
+      "Keep it plain"
+    )
+  )
+```
+
+The LLM ideas come after a note that they are from AI
+(`set_messages(suggested = )`). The fixed strings follow in their own
+list, so they show even if the generation fails.
+
+## Answers given early
+
+Users often answer more than one question at a time, such as “mint chip
+in a cone”. The LLM then also extracts clear answers to later fixed
+questions, and the survey does not ask them. Adaptive questions are
+always asked. Use `set_config(skip_answered = FALSE)` to ask every
+question.
+
 ## Messages and config
 
 ``` r
@@ -137,8 +178,8 @@ Each call changes only the fields that it names.
 
 | Function | Fields |
 |----|----|
-| [`set_messages()`](https://dylanpieper.github.io/surveychat/reference/set_messages.md) | `welcome`, `retry`, `completion`, `closed`, `locked` |
-| [`set_config()`](https://dylanpieper.github.io/surveychat/reference/set_config.md) | `tries`, `response_delay`, `character_delay`, `delay_variance`, `version`, `valid` |
+| [`set_messages()`](https://dylanpieper.github.io/surveychat/reference/set_messages.md) | `welcome`, `retry`, `completion`, `closed`, `locked`, `suggested` |
+| [`set_config()`](https://dylanpieper.github.io/surveychat/reference/set_config.md) | `tries`, `response_delay`, `character_delay`, `delay_variance`, `version`, `valid`, `skip_answered` |
 
 `locked` shows in place of the chat input when the chat cannot
 authenticate, for example when the API key is missing. The server then

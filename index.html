@@ -82,25 +82,26 @@
 <div class="section level2">
 <h2 id="example-icecreamsparkles">Example 🍦✨<a class="anchor" aria-label="anchor" href="#example-icecreamsparkles"></a>
 </h2>
-<p>The package includes a demo that collects the ice cream preferences of the user. The demo uses <code><a href="https://ellmer.tidyverse.org/reference/chat_anthropic.html" class="external-link">ellmer::chat_claude()</a></code>, which reads <code>ANTHROPIC_API_KEY</code>, and it writes the answers to <code>survey.db</code> in the working directory. Put the key in <code>~/.Renviron</code> (<code>usethis::edit_r_environ()</code>) and restart R.</p>
+<p>The package includes a demo: the web page of an ice cream shop with a flavor survey in a side panel. The survey asks about the favorites of the user, and a drawer beside the chat shows the answers so far. The demo uses <code><a href="https://ellmer.tidyverse.org/reference/chat_anthropic.html" class="external-link">ellmer::chat_claude()</a></code>, which reads <code>ANTHROPIC_API_KEY</code>. Put the key in <code>~/.Renviron</code> (<code>usethis::edit_r_environ()</code>) and restart R.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">surveychat</span><span class="fu">::</span><span class="fu"><a href="reference/run_example.html">run_example</a></span><span class="op">(</span><span class="st">"icecream"</span><span class="op">)</span></span></code></pre></div>
-<p>The source of the demo is in <a href="https://github.com/dylanpieper/surveychat/blob/main/inst/examples/icecream/app.R" class="external-link"><code>inst/examples/icecream/app.R</code></a>. Copy it to start your own survey.</p>
+<p><img src="reference/figures/icecream.png" alt="The web page of an ice cream shop. A side panel on the right shows the flavor survey chat, which asks for the name of the user and shows a card to stay anonymous." width="100%"></p>
+<p>The source is in <a href="https://github.com/dylanpieper/surveychat/blob/main/inst/examples/icecream/app.R" class="external-link"><code>inst/examples/icecream/app.R</code></a>. Copy it to start your own survey.</p>
 </div>
 <div class="section level2">
 <h2 id="key-features">Key Features<a class="anchor" aria-label="anchor" href="#key-features"></a>
 </h2>
 <ul>
 <li>
-<strong>LLM extraction</strong> with structured schemas that validate and retry invalid answers</li>
+<strong>LLM extraction</strong> with structured schemas that validate and retry invalid answers, and that record answers to later questions so the survey does not ask again</li>
 <li>
-<strong>Adaptive questions</strong> that the LLM writes from the earlier answers of the user</li>
+<strong>Adaptive questions and generated content</strong> based on the previous answers of the user</li>
 <li>
-<strong>Generated content</strong>, such as a fun fact, before a question</li>
+<strong>Choice cards</strong> from a fixed list, an enum, or the LLM; the user can also type an answer</li>
 <li>
 <strong>SQL storage</strong> of raw and extracted answers, retry counts, and timings</li>
 <li>
-<strong>Chat UI</strong> with simulated typing, a progress cue, and a closing message</li>
+<strong>Chat UI</strong> as a full page or in any layout, such as a sidebar, with a progress cue and an optional drawer for the answers</li>
 </ul>
 </div>
 <div class="section level2">
@@ -145,7 +146,8 @@
 <span>  <span class="fu"><a href="reference/survey_server.html">survey_server</a></span><span class="op">(</span><span class="st">"survey"</span>, <span class="va">survey</span>, <span class="va">chat</span>, <span class="va">con</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/shinyApp.html" class="external-link">shinyApp</a></span><span class="op">(</span><span class="va">ui</span>, <span class="va">server</span><span class="op">)</span></span></code></pre></div>
-<p>Each question has up to four parts:</p>
+<p>To put the survey in a larger app, use <code><a href="reference/survey_chat_ui.html">survey_chat_ui()</a></code> in place of <code><a href="reference/survey_server.html">survey_ui()</a></code>, for example in a <code>bslib::sidebar(fillable = TRUE)</code>. The survey starts when the chat first shows on the screen.</p>
+<p>Each question has up to five parts:</p>
 <table class="table">
 <colgroup>
 <col width="16%">
@@ -172,10 +174,14 @@
 <td><code>intro</code></td>
 <td>A <code><a href="reference/prompt_llm.html">prompt_llm()</a></code> whose output comes before the question, such as a fun fact. <code>format</code> places the output as <code>{content}</code>. The intro adds to the question and does not replace it.</td>
 </tr>
+<tr>
+<td><code>choices</code></td>
+<td>Clickable cards: strings, a <code><a href="reference/prompt_llm.html">prompt_llm()</a></code> for LLM ideas, or a list of both. An enum answer shows its values.</td>
+</tr>
 </tbody>
 </table>
 <p>Use <code><a href="reference/set_messages.html">set_messages()</a></code> to change the welcome, retry, and closing messages, and <code><a href="reference/set_config.html">set_config()</a></code> to change the retries and the typing speed.</p>
-<p><a href="https://dylanpieper.github.io/surveychat/articles/design-surveys.html">Design a survey</a> explains validation, placeholders, generated content, and the supported databases.</p>
+<p><a href="https://dylanpieper.github.io/surveychat/articles/design-surveys.html">Design a survey</a> explains validation, placeholders, generated content, choices, and the supported databases.</p>
 </div>
 <div class="section level2">
 <h2 id="data-model">Data Model<a class="anchor" aria-label="anchor" href="#data-model"></a>
@@ -211,9 +217,8 @@
 <td>Total retries in the session</td>
 </tr>
 <tr>
-<td><code>question_set_version</code></td>
-<td>
-<code>version</code> from <code><a href="reference/survey_spec.html">survey_spec()</a></code> or <code><a href="reference/set_config.html">set_config()</a></code>
+<td><code>version</code></td>
+<td>The version of the question set, from <code><a href="reference/survey_spec.html">survey_spec()</a></code> or <code><a href="reference/set_config.html">set_config()</a></code>
 </td>
 </tr>
 <tr>
@@ -259,6 +264,7 @@
 </tr>
 </tbody>
 </table>
+<p>An answer that came early, in the reply to an earlier question, has no <code>question_text</code>. A skipped optional answer has no <code>answer_extracted</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="analyze-the-data">Analyze the Data<a class="anchor" aria-label="anchor" href="#analyze-the-data"></a>

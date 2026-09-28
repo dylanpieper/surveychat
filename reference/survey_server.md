@@ -7,7 +7,7 @@ passes them in, and closes the connection when it stops.
 ## Usage
 
 ``` r
-survey_server(id, survey, chat, con)
+survey_server(id, survey, chat, con, drawer = NULL)
 
 survey_ui(id, title = "Survey")
 ```
@@ -38,6 +38,16 @@ survey_ui(id, title = "Survey")
   [`init_database()`](https://dylanpieper.github.io/surveychat/reference/init_database.md)
   if they are not there.
 
+- drawer:
+
+  `NULL`, or a function that fills the chat drawer. It takes `answers`,
+  a named list of the answers so far, and `complete`, `TRUE` after the
+  last answer, and returns UI. The drawer stays closed; its toggle shows
+  after the first answer. Use it with a
+  [`shinychat::chat_drawer()`](https://posit-dev.github.io/shinychat/r/reference/chat_drawer.html)
+  in
+  [`survey_chat_ui()`](https://dylanpieper.github.io/surveychat/reference/survey_chat_ui.md).
+
 - title:
 
   The title in the card header.
@@ -48,6 +58,12 @@ survey_ui(id, title = "Survey")
 
 `survey_ui()` returns a full-page Shiny UI with the chat, a progress
 cue, and a footer that shows the closing message.
+
+## Start
+
+The survey starts when the chat first shows on the screen. Then the
+server writes the session row and sends the welcome. A chat in a closed
+sidebar starts when the user opens the sidebar.
 
 ## Examples
 

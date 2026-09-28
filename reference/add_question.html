@@ -57,7 +57,15 @@ asks again, up to <code>tries</code> times (see <code><a href="set_config.html">
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">add_question</span><span class="op">(</span><span class="va">spec</span>, <span class="va">id</span>, <span class="va">text</span>, <span class="va">answer</span>, valid <span class="op">=</span> <span class="cn">NULL</span>, intro <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">add_question</span><span class="op">(</span></span>
+<span>  <span class="va">spec</span>,</span>
+<span>  <span class="va">id</span>,</span>
+<span>  <span class="va">text</span>,</span>
+<span>  <span class="va">answer</span>,</span>
+<span>  valid <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  intro <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  choices <span class="op">=</span> <span class="cn">NULL</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -93,6 +101,17 @@ the default from <code><a href="set_config.html">set_config()</a></code> at the 
 <dd><p>An optional <code><a href="prompt_llm.html">prompt_llm()</a></code> with a <code>format</code>. The LLM generates
 content that the survey shows before the question.</p></dd>
 
+
+<dt id="arg-choices">choices<a class="anchor" aria-label="anchor" href="#arg-choices"></a></dt>
+<dd><p>Clickable answer cards below the question. <code>NULL</code> shows the
+values of an <code><a href="https://ellmer.tidyverse.org/reference/type_boolean.html" class="external-link">ellmer::type_enum()</a></code> and no cards for other types. A
+character vector shows those choices. A <code><a href="prompt_llm.html">prompt_llm()</a></code> makes the LLM
+write the choices from the earlier answers; the <code>suggested</code> message of
+<code><a href="set_messages.html">set_messages()</a></code> tells the user that they are from the LLM. A list of one
+<code><a href="prompt_llm.html">prompt_llm()</a></code> and strings, such as
+<code>list(prompt_llm("Suggest 2 toppings"), "No topping")</code>, always shows the
+strings after the generated choices. The user can also type an answer.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -104,7 +123,10 @@ content that the survey shows before the question.</p></dd>
 
 <p><code>text</code>, the prompts, and the <code>format</code> of <code>intro</code> can use <code>{id}</code> placeholders
 for the answers to earlier questions. A placeholder that does not name an
-earlier question gives a warning, because the user would see the raw name.</p>
+earlier question gives a warning, because the user would see the raw name.
+Use <code>{id|fallback}</code> for an answer that the user can skip, such as an
+optional name from <code>ellmer::type_string(required = FALSE)</code>: a skipped answer
+shows <code>fallback</code>.</p>
     </div>
 
     <div class="section level2">

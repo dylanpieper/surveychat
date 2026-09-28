@@ -12,7 +12,8 @@ set_messages(
   retry = NULL,
   completion = NULL,
   closed = NULL,
-  locked = NULL
+  locked = NULL,
+  suggested = NULL
 )
 ```
 
@@ -44,6 +45,12 @@ set_messages(
 
   The text that replaces the chat input when the chat is not set up, for
   example when the API key is missing.
+
+- suggested:
+
+  The note before choices that the LLM writes. See the `choices`
+  argument of
+  [`add_question()`](https://dylanpieper.github.io/surveychat/reference/add_question.md).
 
 ## Value
 

@@ -1,10 +1,10 @@
 # Run an example survey
 
 Starts an example app that ships with the package. The `"icecream"`
-example asks about ice cream preferences with
+example is the web page of an ice cream shop with a flavor survey in a
+side panel. It uses
 [`ellmer::chat_claude()`](https://ellmer.tidyverse.org/reference/chat_anthropic.html),
-so it needs `ANTHROPIC_API_KEY`. It writes the answers to `survey.db` in
-the working directory with RSQLite.
+so it needs `ANTHROPIC_API_KEY`, and it stores the answers with RSQLite.
 
 ## Usage
 

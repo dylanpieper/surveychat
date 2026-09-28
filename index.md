@@ -14,11 +14,12 @@ pak::pak("dylanpieper/surveychat")
 
 ## Example 🍦✨
 
-The package includes a demo that collects the ice cream preferences of
-the user. The demo uses
+The package includes a demo: the web page of an ice cream shop with a
+flavor survey in a side panel. The survey asks about the favorites of
+the user, and a drawer beside the chat shows the answers so far. The
+demo uses
 [`ellmer::chat_claude()`](https://ellmer.tidyverse.org/reference/chat_anthropic.html),
-which reads `ANTHROPIC_API_KEY`, and it writes the answers to
-`survey.db` in the working directory. Put the key in `~/.Renviron`
+which reads `ANTHROPIC_API_KEY`. Put the key in `~/.Renviron`
 (`usethis::edit_r_environ()`) and restart R.
 
 ``` r
@@ -26,21 +27,27 @@ which reads `ANTHROPIC_API_KEY`, and it writes the answers to
 surveychat::run_example("icecream")
 ```
 
-The source of the demo is in
+![The web page of an ice cream shop. A side panel on the right shows the
+flavor survey chat, which asks for the name of the user and shows a card
+to stay anonymous.](reference/figures/icecream.png)
+
+The source is in
 [`inst/examples/icecream/app.R`](https://github.com/dylanpieper/surveychat/blob/main/inst/examples/icecream/app.R).
 Copy it to start your own survey.
 
 ## Key Features
 
 - **LLM extraction** with structured schemas that validate and retry
-  invalid answers
-- **Adaptive questions** that the LLM writes from the earlier answers of
-  the user
-- **Generated content**, such as a fun fact, before a question
+  invalid answers, and that record answers to later questions so the
+  survey does not ask again
+- **Adaptive questions and generated content** based on the previous
+  answers of the user
+- **Choice cards** from a fixed list, an enum, or the LLM; the user can
+  also type an answer
 - **SQL storage** of raw and extracted answers, retry counts, and
   timings
-- **Chat UI** with simulated typing, a progress cue, and a closing
-  message
+- **Chat UI** as a full page or in any layout, such as a sidebar, with a
+  progress cue and an optional drawer for the answers
 
 ## Usage
 
@@ -91,7 +98,14 @@ server <- function(input, output, session) {
 shinyApp(ui, server)
 ```
 
-Each question has up to four parts:
+To put the survey in a larger app, use
+[`survey_chat_ui()`](https://dylanpieper.github.io/surveychat/reference/survey_chat_ui.md)
+in place of
+[`survey_ui()`](https://dylanpieper.github.io/surveychat/reference/survey_server.md),
+for example in a `bslib::sidebar(fillable = TRUE)`. The survey starts
+when the chat first shows on the screen.
+
+Each question has up to five parts:
 
 | Argument | Purpose |
 |----|----|
@@ -99,6 +113,7 @@ Each question has up to four parts:
 | `answer` | The ellmer type to extract. |
 | `valid` | A plain condition, such as `"they mentioned any flavor"`. An invalid answer is asked again, up to `tries` times. |
 | `intro` | A [`prompt_llm()`](https://dylanpieper.github.io/surveychat/reference/prompt_llm.md) whose output comes before the question, such as a fun fact. `format` places the output as `{content}`. The intro adds to the question and does not replace it. |
+| `choices` | Clickable cards: strings, a [`prompt_llm()`](https://dylanpieper.github.io/surveychat/reference/prompt_llm.md) for LLM ideas, or a list of both. An enum answer shows its values. |
 
 Use
 [`set_messages()`](https://dylanpieper.github.io/surveychat/reference/set_messages.md)
@@ -108,8 +123,8 @@ to change the retries and the typing speed.
 
 [Design a
 survey](https://dylanpieper.github.io/surveychat/articles/design-surveys.html)
-explains validation, placeholders, generated content, and the supported
-databases.
+explains validation, placeholders, generated content, choices, and the
+supported databases.
 
 ## Data Model
 
@@ -121,7 +136,7 @@ databases.
 | `started_at`, `completed_at` | Times of the start and the completion |
 | `completed` | `TRUE` after the last answer |
 | `retry_count` | Total retries in the session |
-| `question_set_version` | `version` from [`survey_spec()`](https://dylanpieper.github.io/surveychat/reference/survey_spec.md) or [`set_config()`](https://dylanpieper.github.io/surveychat/reference/set_config.md) |
+| `version` | The version of the question set, from [`survey_spec()`](https://dylanpieper.github.io/surveychat/reference/survey_spec.md) or [`set_config()`](https://dylanpieper.github.io/surveychat/reference/set_config.md) |
 | `duration_seconds` | Time since the start, updated after each answer |
 
 **`responses`**: one row for each answer, including each retry.
@@ -132,6 +147,9 @@ databases.
 | Exchange | `question_text`, `answer_raw`, `answer_extracted`            |
 | Quality  | `valid`, `retry_attempt`                                     |
 | Timing   | `responded_at`, `duration_seconds`                           |
+
+An answer that came early, in the reply to an earlier question, has no
+`question_text`. A skipped optional answer has no `answer_extracted`.
 
 ## Analyze the Data
 

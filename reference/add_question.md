@@ -9,7 +9,15 @@ survey asks again, up to `tries` times (see
 ## Usage
 
 ``` r
-add_question(spec, id, text, answer, valid = NULL, intro = NULL)
+add_question(
+  spec,
+  id,
+  text,
+  answer,
+  valid = NULL,
+  intro = NULL,
+  choices = NULL
+)
 ```
 
 ## Arguments
@@ -51,6 +59,24 @@ add_question(spec, id, text, answer, valid = NULL, intro = NULL)
   with a `format`. The LLM generates content that the survey shows
   before the question.
 
+- choices:
+
+  Clickable answer cards below the question. `NULL` shows the values of
+  an
+  [`ellmer::type_enum()`](https://ellmer.tidyverse.org/reference/type_boolean.html)
+  and no cards for other types. A character vector shows those choices.
+  A
+  [`prompt_llm()`](https://dylanpieper.github.io/surveychat/reference/prompt_llm.md)
+  makes the LLM write the choices from the earlier answers; the
+  `suggested` message of
+  [`set_messages()`](https://dylanpieper.github.io/surveychat/reference/set_messages.md)
+  tells the user that they are from the LLM. A list of one
+  [`prompt_llm()`](https://dylanpieper.github.io/surveychat/reference/prompt_llm.md)
+  and strings, such as
+  `list(prompt_llm("Suggest 2 toppings"), "No topping")`, always shows
+  the strings after the generated choices. The user can also type an
+  answer.
+
 ## Value
 
 `spec` with the question added at the end.
@@ -60,7 +86,10 @@ add_question(spec, id, text, answer, valid = NULL, intro = NULL)
 `text`, the prompts, and the `format` of `intro` can use `{id}`
 placeholders for the answers to earlier questions. A placeholder that
 does not name an earlier question gives a warning, because the user
-would see the raw name.
+would see the raw name. Use `{id|fallback}` for an answer that the user
+can skip, such as an optional name from
+`ellmer::type_string(required = FALSE)`: a skipped answer shows
+`fallback`.
 
 ## Examples
 

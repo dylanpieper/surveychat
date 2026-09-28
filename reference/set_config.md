@@ -13,7 +13,8 @@ set_config(
   character_delay = NULL,
   delay_variance = NULL,
   version = NULL,
-  valid = NULL
+  valid = NULL,
+  skip_answered = NULL
 )
 ```
 
@@ -51,6 +52,14 @@ set_config(
   The default condition for a valid answer. It applies to each
   [`add_question()`](https://dylanpieper.github.io/surveychat/reference/add_question.md)
   call after this one that has no `valid` of its own.
+
+- skip_answered:
+
+  Whether a reply can answer later questions. If `TRUE`, the LLM also
+  extracts clear answers to later fixed questions, and the survey
+  records them and does not ask those questions. Adaptive questions are
+  always asked. In the database, such an answer has no `question_text`,
+  and `answer_raw` is the reply that gave it.
 
 ## Value
 
