@@ -244,30 +244,46 @@ test_that("chat_probe_error() sends one try with a short timeout", {
   expect_equal(getOption("ellmer_max_tries"), 3)
 })
 
-test_that("chat_probe_cached() reuses a result for the same chat until ttl", {
-  probe_cache$entries <- list()
-  withr::defer(probe_cache$entries <- list())
+test_that("chat_probe_cached() keeps a success longer than a failure", {
+  local_probe_cache()
   start <- Sys.time()
+  at <- \(seconds) \() start + seconds
   ok <- fake_chat()
-  down <- fake_chat(.probe = simpleError("HTTP 503"))
+  down <- fake_chat(.probe = simpleError("HTTP 529"))
 
-  expect_null(chat_probe_cached(ok, ttl = 30, now = start))
-  expect_null(chat_probe_cached(ok, ttl = 30, now = start + 10))
+  expect_null(chat_probe_cached(ok, clock = at(0)))
+  expect_null(chat_probe_cached(ok, clock = at(20)))
   expect_equal(ok$log$probes, 1)
-
-  expect_s3_class(chat_probe_cached(down, ttl = 30, now = start), "error")
-  expect_s3_class(chat_probe_cached(down, ttl = 30, now = start + 10), "error")
-  expect_equal(down$log$probes, 1)
-
-  expect_null(chat_probe_cached(ok, ttl = 30, now = start + 31))
+  expect_null(chat_probe_cached(ok, clock = at(31)))
   expect_equal(ok$log$probes, 2)
+
+  expect_s3_class(chat_probe_cached(down, clock = at(0)), "error")
+  expect_s3_class(chat_probe_cached(down, clock = at(3)), "error")
+  expect_equal(down$log$probes, 1)
+  expect_s3_class(chat_probe_cached(down, clock = at(6)), "error")
+  expect_equal(down$log$probes, 2)
+})
+
+test_that("chat_probe_cached() starts an entry's age when its check ends", {
+  local_probe_cache()
+  start <- Sys.time()
+  # Each clock() call moves 4 seconds: the lookup, then the end of the check
+  ticks <- 0
+  clock <- function() {
+    ticks <<- ticks + 1
+    start + 4 * (ticks - 1)
+  }
+  down <- fake_chat(.probe = simpleError("HTTP 529"))
+
+  chat_probe_cached(down, clock = clock)
+  expect_s3_class(chat_probe_cached(down, clock = \() start + 8), "error")
+  expect_equal(down$log$probes, 1)
 })
 
 test_that("two sessions with one chat share one model check", {
   con <- local_sqlite()
   local_sent_messages()
   chat <- fake_chat()
-  withr::defer(probe_cache$entries <- list())
 
   for (i in 1:2) {
     shiny::testServer(

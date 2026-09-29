@@ -43,9 +43,10 @@ are always asked. In the database, such an answer has no
 \item{check_model}{Whether the server sends the model a short test prompt
 when the chat opens. If \code{TRUE}, a spinner covers the chat until the model
 answers, and a failed request locks the survey with the \code{locked} message
-of \code{\link[=set_messages]{set_messages()}}. The request has one try, and its result serves every
+of \code{\link[=set_messages]{set_messages()}}. The request has one try. A success serves every
 session that opens in the next 30 seconds, so most sessions add no
-request. If \code{FALSE}, the survey starts at once with no extra request.}
+request. A failure serves the sessions of the next 5 seconds. If \code{FALSE},
+the survey starts at once with no extra request.}
 }
 \value{
 \code{spec} with the new config.

@@ -203,22 +203,28 @@ chat_probe_error <- function(chat, timeout = 20) {
 probe_cache <- new.env(parent = emptyenv())
 probe_cache$entries <- list()
 
-# chat_probe_error() with a result that is reused for `ttl` seconds for the
-# same chat object. One check then serves every session that opens in that
-# time, in a healthy period and in an outage.
-chat_probe_cached <- function(chat, ttl = 30, now = Sys.time()) {
+# chat_probe_error() with a result that is reused for the same chat object:
+# a success for `ttl` seconds, and a failure for `ttl_error` seconds. One
+# check then serves every session that opens in that time, and a short
+# outage locks only the sessions that open while it lasts. Each entry's age
+# starts when its check ends. `clock` gives the current time.
+chat_probe_cached <- function(chat, ttl = 30, ttl_error = 5, clock = Sys.time) {
+  now <- clock()
   fresh <- Filter(
-    \(entry) difftime(now, entry$time, units = "secs") < ttl,
+    \(entry) {
+      limit <- if (is.null(entry$error)) ttl else ttl_error
+      difftime(now, entry$time, units = "secs") < limit
+    },
     probe_cache$entries
   )
+  probe_cache$entries <- fresh
   for (entry in fresh) {
     if (identical(entry$chat, chat)) {
-      probe_cache$entries <- fresh
       return(entry$error)
     }
   }
   error <- chat_probe_error(chat)
-  entry <- list(chat = chat, time = now, error = error)
-  probe_cache$entries <- c(fresh, list(entry))
+  entry <- list(chat = chat, time = clock(), error = error)
+  probe_cache$entries <- c(probe_cache$entries, list(entry))
   error
 }
