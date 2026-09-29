@@ -40,6 +40,49 @@ test_that("survey_server() starts the survey and advances on each reply", {
   )
 })
 
+test_that("survey_server() removes the waiter after the model answers", {
+  con <- local_sqlite()
+  local_sent_messages()
+  removed <- local_removed_ui()
+
+  shiny::testServer(
+    survey_server,
+    args = list(survey = test_spec(), chat = fake_chat(), con = con),
+    {
+      session$flushReact()
+      expect_length(removed(), 0)
+
+      session$setInputs(chat_greeting_requested = 1)
+      expect_equal(removed(), "#proxy1-waiter")
+    }
+  )
+})
+
+test_that("survey_server() skips the model check when it is off", {
+  con <- local_sqlite()
+  local_sent_messages()
+  removed <- local_removed_ui()
+  survey <- set_config(test_spec(), check_model = FALSE)
+  chat <- fake_chat(.probe = simpleError("The check must not run."))
+
+  shiny::testServer(
+    survey_server,
+    args = list(survey = survey, chat = chat, con = con),
+    {
+      session$flushReact()
+      expect_equal(removed(), "#proxy1-waiter")
+
+      session$setInputs(chat_greeting_requested = 1)
+      expect_equal(removed(), "#proxy1-waiter")
+      expect_null(output$footer)
+      expect_equal(
+        DBI::dbGetQuery(con, "SELECT COUNT(*) AS n FROM sessions")$n,
+        1
+      )
+    }
+  )
+})
+
 test_that("survey_server() fills the closed drawer with each new answer", {
   con <- local_sqlite()
   chat <- fake_chat(
@@ -134,6 +177,7 @@ test_that("survey_server() locks the survey when the chat is not set up", {
   local_mocked_bindings(
     chat_setup_error = \(chat) simpleError("Can't find env var `API_KEY`.")
   )
+  removed <- local_removed_ui()
 
   expect_snapshot(
     shiny::testServer(
@@ -141,11 +185,46 @@ test_that("survey_server() locks the survey when the chat is not set up", {
       args = list(survey = test_spec(), chat = fake_chat(), con = con),
       {
         session$flushReact()
-        expect_match(as.character(output$footer$html), "not available")
+        expect_match(as.character(output$footer$html), "unavailable")
         expect_false(DBI::dbExistsTable(con, "sessions"))
       }
     )
   )
+  expect_equal(removed(), "#proxy1-waiter")
+})
+
+test_that("survey_server() locks the survey when the model does not answer", {
+  con <- local_sqlite()
+  sent <- local_sent_messages()
+  removed <- local_removed_ui()
+  chat <- fake_chat(.probe = simpleError("HTTP 529 Overloaded."))
+
+  expect_snapshot(
+    shiny::testServer(
+      survey_server,
+      args = list(survey = test_spec(), chat = chat, con = con),
+      {
+        session$setInputs(chat_greeting_requested = 1)
+        expect_match(as.character(output$footer$html), "unavailable")
+        expect_length(sent(), 0)
+        expect_false(DBI::dbExistsTable(con, "sessions"))
+
+        session$setInputs(chat_user_input = "Ada")
+        expect_length(sent(), 0)
+      }
+    )
+  )
+  expect_equal(removed(), "#proxy1-waiter")
+})
+
+test_that("chat_probe_error() returns NULL only when the model sends text", {
+  expect_null(chat_probe_error(fake_chat()))
+  expect_s3_class(
+    chat_probe_error(fake_chat(.probe = simpleError("HTTP 500"))),
+    "error"
+  )
+  expect_s3_class(chat_probe_error(fake_chat(.probe = "  ")), "error")
+  expect_s3_class(chat_probe_error(fake_chat(.probe = character())), "error")
 })
 
 test_that("chat_setup_error() returns the credentials error, if any", {

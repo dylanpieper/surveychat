@@ -28,7 +28,7 @@
       shiny::testServer(survey_server, args = list(survey = test_spec(), chat = fake_chat(),
       con = con), {
         session$flushReact()
-        expect_match(as.character(output$footer$html), "not available")
+        expect_match(as.character(output$footer$html), "unavailable")
         expect_false(DBI::dbExistsTable(con, "sessions"))
       })
     Condition
@@ -37,6 +37,25 @@
       i Check the credentials of the provider, such as its API key in '~/.Renviron', then restart R.
       Caused by error:
       ! Can't find env var `API_KEY`.
+
+# survey_server() locks the survey when the model does not answer
+
+    Code
+      shiny::testServer(survey_server, args = list(survey = test_spec(), chat = chat,
+      con = con), {
+        session$setInputs(chat_greeting_requested = 1)
+        expect_match(as.character(output$footer$html), "unavailable")
+        expect_length(sent(), 0)
+        expect_false(DBI::dbExistsTable(con, "sessions"))
+        session$setInputs(chat_user_input = "Ada")
+        expect_length(sent(), 0)
+      })
+    Condition
+      Warning:
+      The survey is locked because the model did not answer.
+      i Check the status of the provider and the model name.
+      Caused by error:
+      ! HTTP 529 Overloaded.
 
 # chat_setup_error() warns when it cannot find the credentials
 

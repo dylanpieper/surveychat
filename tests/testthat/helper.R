@@ -1,7 +1,9 @@
 # A chat with the interface that surveychat uses. Each chat_structured() call
 # returns the next scripted reply; a reply that is a condition is thrown.
-# `$log$prompts` records each prompt and `$log$types` each schema.
-fake_chat <- function(...) {
+# `$log$prompts` records each prompt and `$log$types` each schema. chat()
+# answers the start probe with `.probe`; a `.probe` that is a condition is
+# thrown.
+fake_chat <- function(..., .probe = "OK") {
   replies <- list(...)
   log <- new.env()
   log$prompts <- character()
@@ -11,6 +13,12 @@ fake_chat <- function(...) {
       log = log,
       clone = function() chat,
       set_turns = function(turns) chat,
+      chat = function(...) {
+        if (inherits(.probe, "condition")) {
+          stop(.probe)
+        }
+        .probe
+      },
       chat_structured = function(prompt, type) {
         log$prompts <- c(log$prompts, prompt)
         log$types <- c(log$types, list(type))
@@ -63,6 +71,22 @@ local_sent_messages <- function(env = parent.frame()) {
   function(drawer = FALSE) {
     if (drawer) log$drawer else log$messages
   }
+}
+
+# Records the selector of each removeUI() call. Returns a function that gives
+# the selectors.
+local_removed_ui <- function(env = parent.frame()) {
+  log <- new.env()
+  log$selectors <- character()
+  testthat::local_mocked_bindings(
+    removeUI = function(selector, ...) {
+      log$selectors <- c(log$selectors, selector)
+      invisible()
+    },
+    .package = "shiny",
+    .env = env
+  )
+  function() log$selectors
 }
 
 local_sqlite <- function(env = parent.frame()) {

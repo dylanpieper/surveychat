@@ -19,8 +19,12 @@
 #'   effects.
 #' @section Start:
 #' The survey starts when the chat first shows on the screen. Then the server
-#' writes the session row and sends the welcome. A chat in a closed sidebar
-#' starts when the user opens the sidebar.
+#' sends the model a short test prompt. If the model answers with text, the
+#' server writes the session row and sends the welcome. If the request fails,
+#' for example with an HTTP error, the survey locks and shows the `locked`
+#' message of [set_messages()]. A chat in a closed sidebar starts when the user
+#' opens the sidebar. To skip the test prompt, use
+#' `set_config(check_model = FALSE)`.
 #' @export
 #' @examplesIf interactive() && rlang::is_installed("RSQLite")
 #' library(shiny)
@@ -48,17 +52,16 @@ survey_server <- function(id, survey, chat, con, drawer = NULL) {
   config <- survey$config
 
   shiny::moduleServer(id, function(input, output, session) {
-    # A chat that cannot authenticate locks the survey: the input is hidden,
-    # no session row is written, and the console gets the cause
-    setup_error <- chat_setup_error(chat)
-    if (!is.null(setup_error)) {
-      cli::cli_warn(
-        c(
-          "The survey is locked because the chat is not set up.",
-          "i" = "Check the credentials of the provider, such as its API key in {.file ~/.Renviron}, then restart R."
-        ),
-        parent = setup_error
-      )
+    # The waiter covers the chat until the model check ends
+    hide_waiter <- function() {
+      shiny::removeUI(paste0("#", session$ns("waiter")), session = session)
+    }
+
+    # A locked survey hides the input, writes no session row, and gives the
+    # cause in the console
+    lock <- function(reason, cause) {
+      cli::cli_warn(reason, parent = cause)
+      hide_waiter()
       output$footer <- shiny::renderUI({
         survey_complete(
           survey$messages$locked,
@@ -66,7 +69,24 @@ survey_server <- function(id, survey, chat, con, drawer = NULL) {
           status = "locked"
         )
       })
+      invisible(reason)
+    }
+
+    setup_error <- chat_setup_error(chat)
+    if (!is.null(setup_error)) {
+      lock(
+        c(
+          "The survey is locked because the chat is not set up.",
+          "i" = "Check the credentials of the provider, such as its API key in {.file ~/.Renviron}, then restart R."
+        ),
+        setup_error
+      )
       return(invisible())
+    }
+
+    check_model <- !isFALSE(config$check_model)
+    if (!check_model) {
+      hide_waiter()
     }
 
     engine <- NULL
@@ -145,12 +165,28 @@ survey_server <- function(id, survey, chat, con, drawer = NULL) {
     }
 
     # Starts once, when the empty chat first shows on the screen, and sends
-    # the first question as a separate message after the welcome
+    # the first question as a separate message after the welcome. With
+    # `check_model`, a model that does not answer locks the survey before it
+    # starts.
     shiny::observeEvent(input$chat_greeting_requested, {
       if (started) {
         return()
       }
       started <<- TRUE
+      if (check_model) {
+        probe_error <- chat_probe_error(chat)
+        if (!is.null(probe_error)) {
+          lock(
+            c(
+              "The survey is locked because the model did not answer.",
+              "i" = "Check the status of the provider and the model name."
+            ),
+            probe_error
+          )
+          return()
+        }
+        hide_waiter()
+      }
       engine <<- SurveySession$new(survey, chat, con)
       shiny::onStop(\() if (!is.null(engine)) engine$close())
 

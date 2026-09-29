@@ -247,6 +247,14 @@ test_that("set_messages() and set_config() change only the named fields", {
   )
 })
 
+test_that("set_config() turns the model check on by default and off on request", {
+  expect_true(survey_spec()$config$check_model)
+  expect_false(
+    set_config(survey_spec(), check_model = FALSE)$config$check_model
+  )
+  expect_error(set_config(survey_spec(), check_model = "no"), "check_model")
+})
+
 test_that("set_messages() and set_config() reject bad values", {
   expect_snapshot(error = TRUE, {
     set_messages(survey_spec(), welcome = 1)

@@ -189,8 +189,8 @@ prompt_llm <- function(prompt, format = NULL) {
 #' @param completion The message after the last answer. It can use `{id}`
 #'   placeholders for any answer.
 #' @param closed The text that replaces the chat input after the survey.
-#' @param locked The text that replaces the chat input when the chat is not
-#'   set up, for example when the API key is missing.
+#' @param locked The text that covers the chat when the survey cannot start:
+#'   the API key is missing, or the model does not answer when the chat opens.
 #' @param suggested The note before choices that the LLM writes. See the
 #'   `choices` argument of [add_question()].
 #' @return `spec` with the new messages.
@@ -242,6 +242,11 @@ set_messages <- function(
 #'   survey records them and does not ask those questions. Adaptive questions
 #'   are always asked. In the database, such an answer has no
 #'   `question_text`, and `answer_raw` is the reply that gave it.
+#' @param check_model Whether the server sends the model a short test prompt
+#'   when the chat opens. If `TRUE`, a spinner covers the chat until the model
+#'   answers, and a failed request locks the survey with the `locked` message
+#'   of [set_messages()]. If `FALSE`, the survey starts at once with no extra
+#'   request.
 #' @return `spec` with the new config.
 #' @export
 #' @examples
@@ -255,11 +260,15 @@ set_config <- function(
   delay_variance = NULL,
   version = NULL,
   valid = NULL,
-  skip_answered = NULL
+  skip_answered = NULL,
+  check_model = NULL
 ) {
   check_spec(spec)
   if (!is.null(skip_answered)) {
     check_bool(skip_answered)
+  }
+  if (!is.null(check_model)) {
+    check_bool(check_model)
   }
   if (!is.null(tries)) {
     check_number(tries, whole = TRUE)
@@ -287,7 +296,8 @@ set_config <- function(
     delay_variance = delay_variance,
     version = version,
     valid = valid,
-    skip_answered = skip_answered
+    skip_answered = skip_answered,
+    check_model = check_model
   ))
   spec$config <- utils::modifyList(spec$config, given)
   spec
@@ -356,7 +366,7 @@ default_messages <- function() {
     retry = "Sorry, I didn't quite get that. Could you try again?",
     completion = "Thank you! Your answers are recorded.",
     closed = "Survey complete. Thank you!",
-    locked = "This survey is not available right now.",
+    locked = "Sorry, the service is unavailable right now.",
     suggested = "*Ideas from AI. Pick one or type your own.*"
   )
 }
@@ -372,7 +382,8 @@ default_config <- function() {
       "the reply answers the question, even if it is brief, informal, or",
       "unconventional, and it is not off-topic, rude, or nonsense"
     ),
-    skip_answered = TRUE
+    skip_answered = TRUE,
+    check_model = TRUE
   )
 }
 

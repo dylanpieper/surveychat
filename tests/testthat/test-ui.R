@@ -25,6 +25,11 @@ test_that("survey_chat_ui() makes a chat with a footer and an optional drawer", 
   expect_match(html, 'id="survey-chat"', fixed = TRUE)
   expect_match(html, 'id="survey-progress"', fixed = TRUE)
   expect_match(html, 'id="survey-footer"', fixed = TRUE)
+  expect_match(
+    html,
+    'id="survey-waiter" class="sb-overlay sb-waiter"',
+    fixed = TRUE
+  )
   expect_no_match(html, "<shiny-chat-drawer", fixed = TRUE)
 
   with_drawer <- as.character(survey_chat_ui(

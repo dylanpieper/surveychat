@@ -26,8 +26,8 @@ placeholders for any answer.}
 
 \item{closed}{The text that replaces the chat input after the survey.}
 
-\item{locked}{The text that replaces the chat input when the chat is not
-set up, for example when the API key is missing.}
+\item{locked}{The text that covers the chat when the survey cannot start:
+the API key is missing, or the model does not answer when the chat opens.}
 
 \item{suggested}{The note before choices that the LLM writes. See the
 \code{choices} argument of \code{\link[=add_question]{add_question()}}.}

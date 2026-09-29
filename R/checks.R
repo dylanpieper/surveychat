@@ -178,3 +178,20 @@ chat_setup_error <- function(chat) {
     error = function(err) err
   )
 }
+
+# Returns NULL if the model answers a short prompt with text, or the error if
+# it does not. It sends one small request on a copy of the chat with no
+# history, so an HTTP error, such as an overloaded or unreachable service,
+# shows before the survey starts.
+chat_probe_error <- function(chat) {
+  tryCatch(
+    {
+      reply <- fresh_chat(chat)$chat("Reply with the word OK.", echo = "none")
+      if (!nzchar(trimws(paste(as.character(reply), collapse = "")))) {
+        cli::cli_abort("The model returned no text.")
+      }
+      NULL
+    },
+    error = function(err) err
+  )
+}

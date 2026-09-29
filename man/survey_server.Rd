@@ -43,8 +43,12 @@ them in, and closes the connection when it stops.
 \section{Start}{
 
 The survey starts when the chat first shows on the screen. Then the server
-writes the session row and sends the welcome. A chat in a closed sidebar
-starts when the user opens the sidebar.
+sends the model a short test prompt. If the model answers with text, the
+server writes the session row and sends the welcome. If the request fails,
+for example with an HTTP error, the survey locks and shows the \code{locked}
+message of \code{\link[=set_messages]{set_messages()}}. A chat in a closed sidebar starts when the user
+opens the sidebar. To skip the test prompt, use
+\code{set_config(check_model = FALSE)}.
 }
 
 \examples{

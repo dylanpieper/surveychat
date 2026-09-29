@@ -12,7 +12,8 @@ set_config(
   delay_variance = NULL,
   version = NULL,
   valid = NULL,
-  skip_answered = NULL
+  skip_answered = NULL,
+  check_model = NULL
 )
 }
 \arguments{
@@ -38,6 +39,12 @@ the LLM also extracts clear answers to later fixed questions, and the
 survey records them and does not ask those questions. Adaptive questions
 are always asked. In the database, such an answer has no
 \code{question_text}, and \code{answer_raw} is the reply that gave it.}
+
+\item{check_model}{Whether the server sends the model a short test prompt
+when the chat opens. If \code{TRUE}, a spinner covers the chat until the model
+answers, and a failed request locks the survey with the \code{locked} message
+of \code{\link[=set_messages]{set_messages()}}. If \code{FALSE}, the survey starts at once with no extra
+request.}
 }
 \value{
 \code{spec} with the new config.

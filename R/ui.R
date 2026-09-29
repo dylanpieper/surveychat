@@ -26,6 +26,20 @@ styles <- "
 }
 .sb-chat .shiny-chat-drawer-trigger { display: none; }
 .sb-chat .shiny-chat-suggestion-list[data-pending]::before { content: none; }
+shiny-chat-container.sb-chat { position: relative; }
+/* A sidebar with no title puts its collapse toggle over the first message */
+.sidebar-content:not(:has(> .sidebar-title)) > shiny-chat-container.sb-chat {
+  padding-top: 2.5rem;
+}
+.sb-overlay {
+  position: absolute; inset: 0; z-index: 10;
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: .75rem; padding: 1rem; text-align: center;
+  background: var(--bs-body-bg, #fff);
+}
+.sb-waiter { font-size: .9rem; color: var(--bs-secondary-color, #6c757d); }
+.sb-locked .sb-complete-icon { font-size: 1.5rem; }
+.sb-chat:has(.sb-overlay) shiny-chat-input { display: none; }
 /* In a fill container, the chat must shrink so that its messages scroll and
    follow new content (posit-dev/shinychat#407) */
 shiny-chat-container.sb-chat[fill] { min-height: 0; }
@@ -116,7 +130,10 @@ survey_chat_ui <- function(
       class = "sb-chat",
       placeholder = placeholder,
       drawer = drawer,
-      footer = shiny::uiOutput(ns("footer")),
+      footer = htmltools::tagList(
+        survey_waiter(ns("waiter")),
+        shiny::uiOutput(ns("footer"))
+      ),
       toolbar_input = toolbar,
       icon_assistant = icon_assistant,
       enable_cancel = FALSE,
@@ -138,6 +155,21 @@ drawer_toggle <- function(ns, title) {
       icon = shiny::icon("clipboard-list"),
       class = "btn-sm btn-outline-primary rounded-pill"
     )
+  )
+}
+
+# Overlay that covers the chat and hides its input until the server checks
+# the model. The server removes it by `id` when the survey starts or locks.
+survey_waiter <- function(id, label = "Connecting...") {
+  htmltools::div(
+    id = id,
+    class = "sb-overlay sb-waiter",
+    role = "status",
+    htmltools::div(
+      class = "spinner-border text-primary",
+      `aria-hidden` = "true"
+    ),
+    htmltools::span(label)
   )
 }
 
@@ -174,11 +206,11 @@ survey_progress <- function(
   )
 }
 
-# Footer that retires the chat input. "complete" shows a green check after the
-# survey; "locked" shows a red cross when the survey cannot start. The chat
-# re-enables its own input at the end of each stream, so a style rule hides
-# the input instead of the `disabled` property. `chat_id` is the full,
-# namespaced id.
+# Footer that retires the chat input. "complete" shows a green check below the
+# chat after the survey; "locked" covers the whole chat with a red cross and
+# the message when the survey cannot start. The chat re-enables its own input
+# at the end of each stream, so a style rule hides the input instead of the
+# `disabled` property. `chat_id` is the full, namespaced id.
 survey_complete <- function(
   message,
   chat_id,
@@ -186,16 +218,14 @@ survey_complete <- function(
 ) {
   status <- rlang::arg_match(status)
   icon <- if (status == "complete") "\u2713" else "\u2715"
+  class <- if (status == "complete") "sb-complete" else "sb-overlay sb-locked"
   htmltools::tagList(
     htmltools::tags$style(htmltools::HTML(sprintf(
       "#%s shiny-chat-input { display: none; }",
       chat_id
     ))),
     htmltools::div(
-      class = paste(
-        c("sb-complete", if (status == "locked") "sb-locked"),
-        collapse = " "
-      ),
+      class = class,
       role = "status",
       htmltools::span(class = "sb-complete-icon", icon),
       htmltools::span(message)
