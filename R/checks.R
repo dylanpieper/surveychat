@@ -178,3 +178,53 @@ chat_setup_error <- function(chat) {
     error = function(err) err
   )
 }
+
+# Returns NULL if the model answers a short prompt with text, or the error if
+# it does not. It sends one small request on a copy of the chat with no
+# history, so an HTTP error, such as an overloaded or unreachable service,
+# shows before the survey starts. The request has one try and a short
+# timeout, because it blocks the R process while it runs.
+chat_probe_error <- function(chat, timeout = 20) {
+  old <- options(ellmer_max_tries = 1, ellmer_timeout_s = timeout)
+  on.exit(options(old))
+  tryCatch(
+    {
+      reply <- fresh_chat(chat)$chat("Reply with the word OK.", echo = "none")
+      if (!nzchar(trimws(paste(as.character(reply), collapse = "")))) {
+        cli::cli_abort("The model returned no text.")
+      }
+      NULL
+    },
+    error = function(err) err
+  )
+}
+
+# Results of chat_probe_error() by chat, shared by all sessions in the process
+probe_cache <- new.env(parent = emptyenv())
+probe_cache$entries <- list()
+
+# chat_probe_error() with a result that is reused for the same chat object:
+# a success for `ttl` seconds, and a failure for `ttl_error` seconds. One
+# check then serves every session that opens in that time, and a short
+# outage locks only the sessions that open while it lasts. Each entry's age
+# starts when its check ends. `clock` gives the current time.
+chat_probe_cached <- function(chat, ttl = 30, ttl_error = 5, clock = Sys.time) {
+  now <- clock()
+  fresh <- Filter(
+    \(entry) {
+      limit <- if (is.null(entry$error)) ttl else ttl_error
+      difftime(now, entry$time, units = "secs") < limit
+    },
+    probe_cache$entries
+  )
+  probe_cache$entries <- fresh
+  for (entry in fresh) {
+    if (identical(entry$chat, chat)) {
+      return(entry$error)
+    }
+  }
+  error <- chat_probe_error(chat)
+  entry <- list(chat = chat, time = clock(), error = error)
+  probe_cache$entries <- c(probe_cache$entries, list(entry))
+  error
+}

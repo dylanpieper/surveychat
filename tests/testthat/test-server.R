@@ -40,6 +40,49 @@ test_that("survey_server() starts the survey and advances on each reply", {
   )
 })
 
+test_that("survey_server() removes the waiter after the model answers", {
+  con <- local_sqlite()
+  local_sent_messages()
+  removed <- local_removed_ui()
+
+  shiny::testServer(
+    survey_server,
+    args = list(survey = test_spec(), chat = fake_chat(), con = con),
+    {
+      session$flushReact()
+      expect_length(removed(), 0)
+
+      session$setInputs(chat_greeting_requested = 1)
+      expect_equal(removed(), "#proxy1-waiter")
+    }
+  )
+})
+
+test_that("survey_server() skips the model check when it is off", {
+  con <- local_sqlite()
+  local_sent_messages()
+  removed <- local_removed_ui()
+  survey <- set_config(test_spec(), check_model = FALSE)
+  chat <- fake_chat(.probe = simpleError("The check must not run."))
+
+  shiny::testServer(
+    survey_server,
+    args = list(survey = survey, chat = chat, con = con),
+    {
+      session$flushReact()
+      expect_equal(removed(), "#proxy1-waiter")
+
+      session$setInputs(chat_greeting_requested = 1)
+      expect_equal(removed(), "#proxy1-waiter")
+      expect_null(output$footer)
+      expect_equal(
+        DBI::dbGetQuery(con, "SELECT COUNT(*) AS n FROM sessions")$n,
+        1
+      )
+    }
+  )
+})
+
 test_that("survey_server() fills the closed drawer with each new answer", {
   con <- local_sqlite()
   chat <- fake_chat(
@@ -134,6 +177,7 @@ test_that("survey_server() locks the survey when the chat is not set up", {
   local_mocked_bindings(
     chat_setup_error = \(chat) simpleError("Can't find env var `API_KEY`.")
   )
+  removed <- local_removed_ui()
 
   expect_snapshot(
     shiny::testServer(
@@ -141,10 +185,117 @@ test_that("survey_server() locks the survey when the chat is not set up", {
       args = list(survey = test_spec(), chat = fake_chat(), con = con),
       {
         session$flushReact()
-        expect_match(as.character(output$footer$html), "not available")
+        expect_match(as.character(output$footer$html), "unavailable")
         expect_false(DBI::dbExistsTable(con, "sessions"))
       }
     )
+  )
+  expect_equal(removed(), "#proxy1-waiter")
+})
+
+test_that("survey_server() locks the survey when the model does not answer", {
+  con <- local_sqlite()
+  sent <- local_sent_messages()
+  removed <- local_removed_ui()
+  chat <- fake_chat(.probe = simpleError("HTTP 529 Overloaded."))
+
+  expect_snapshot(
+    shiny::testServer(
+      survey_server,
+      args = list(survey = test_spec(), chat = chat, con = con),
+      {
+        session$setInputs(chat_greeting_requested = 1)
+        expect_match(as.character(output$footer$html), "unavailable")
+        expect_length(sent(), 0)
+        expect_false(DBI::dbExistsTable(con, "sessions"))
+
+        session$setInputs(chat_user_input = "Ada")
+        expect_length(sent(), 0)
+      }
+    )
+  )
+  expect_equal(removed(), "#proxy1-waiter")
+})
+
+test_that("chat_probe_error() returns NULL only when the model sends text", {
+  expect_null(chat_probe_error(fake_chat()))
+  expect_s3_class(
+    chat_probe_error(fake_chat(.probe = simpleError("HTTP 500"))),
+    "error"
+  )
+  expect_s3_class(chat_probe_error(fake_chat(.probe = "  ")), "error")
+  expect_s3_class(chat_probe_error(fake_chat(.probe = character())), "error")
+})
+
+test_that("chat_probe_error() sends one try with a short timeout", {
+  seen <- NULL
+  chat <- list(
+    clone = function() chat,
+    set_turns = function(turns) chat,
+    chat = function(...) {
+      seen <<- options()[c("ellmer_max_tries", "ellmer_timeout_s")]
+      "OK"
+    }
+  )
+  withr::local_options(ellmer_max_tries = 3)
+
+  expect_null(chat_probe_error(chat, timeout = 7))
+  expect_equal(seen, list(ellmer_max_tries = 1, ellmer_timeout_s = 7))
+  expect_equal(getOption("ellmer_max_tries"), 3)
+})
+
+test_that("chat_probe_cached() keeps a success longer than a failure", {
+  local_probe_cache()
+  start <- Sys.time()
+  at <- \(seconds) \() start + seconds
+  ok <- fake_chat()
+  down <- fake_chat(.probe = simpleError("HTTP 529"))
+
+  expect_null(chat_probe_cached(ok, clock = at(0)))
+  expect_null(chat_probe_cached(ok, clock = at(20)))
+  expect_equal(ok$log$probes, 1)
+  expect_null(chat_probe_cached(ok, clock = at(31)))
+  expect_equal(ok$log$probes, 2)
+
+  expect_s3_class(chat_probe_cached(down, clock = at(0)), "error")
+  expect_s3_class(chat_probe_cached(down, clock = at(3)), "error")
+  expect_equal(down$log$probes, 1)
+  expect_s3_class(chat_probe_cached(down, clock = at(6)), "error")
+  expect_equal(down$log$probes, 2)
+})
+
+test_that("chat_probe_cached() starts an entry's age when its check ends", {
+  local_probe_cache()
+  start <- Sys.time()
+  # Each clock() call moves 4 seconds: the lookup, then the end of the check
+  ticks <- 0
+  clock <- function() {
+    ticks <<- ticks + 1
+    start + 4 * (ticks - 1)
+  }
+  down <- fake_chat(.probe = simpleError("HTTP 529"))
+
+  chat_probe_cached(down, clock = clock)
+  expect_s3_class(chat_probe_cached(down, clock = \() start + 8), "error")
+  expect_equal(down$log$probes, 1)
+})
+
+test_that("two sessions with one chat share one model check", {
+  con <- local_sqlite()
+  local_sent_messages()
+  chat <- fake_chat()
+
+  for (i in 1:2) {
+    shiny::testServer(
+      survey_server,
+      args = list(survey = test_spec(), chat = chat, con = con),
+      session$setInputs(chat_greeting_requested = 1)
+    )
+  }
+  expect_equal(chat$log$probes, 1)
+  expect_equal(
+    DBI::dbGetQuery(con, "SELECT COUNT(*) AS n FROM sessions")$n,
+    2
   )
 })
 

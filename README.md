@@ -16,7 +16,7 @@ The package includes a demo: the web page of an ice cream shop with a flavor sur
 surveychat::run_example("icecream")
 ```
 
-<img src="man/figures/icecream.png" alt="The web page of an ice cream shop. A side panel on the right shows the flavor survey chat, which asks for the name of the user and shows a card to stay anonymous." width="100%"/>
+<img src="man/figures/icecream.png" alt="The web page of an ice cream shop. A side panel on the right shows the survey chat. The bot, RoboScoop, greets the user, asks for their name with a card to stay anonymous, and then asks for their favorite flavor." width="100%"/>
 
 The source is in [`inst/examples/icecream/app.R`](https://github.com/dylanpieper/surveychat/blob/main/inst/examples/icecream/app.R). Copy it to start your own survey.
 
