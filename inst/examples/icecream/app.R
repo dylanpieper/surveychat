@@ -19,7 +19,7 @@ menu <- paste(
 # Survey ----
 survey <- survey_spec(version = "1.0") |>
   set_messages(
-    welcome = "Hi! Your answers help us pick our next batch. 🍨",
+    welcome = "Hi, I'm RoboScoop! Your answers help us pick our next batch. 🍨",
     retry = "Sorry, I had trouble understanding that. 🤔 Could you try again?",
     completion = paste(
       "Thanks, {name|friend}! Your scoop card is ready. 🍦✨"
@@ -234,7 +234,7 @@ ui <- page_sidebar(
   fillable = FALSE,
   sidebar = sidebar(
     id = "survey_sidebar",
-    title = "Flavor survey",
+    title = NULL,
     position = "right",
     fillable = TRUE,
     open = "closed",
