@@ -174,7 +174,7 @@ survey_server <- function(id, survey, chat, con, drawer = NULL) {
       }
       started <<- TRUE
       if (check_model) {
-        probe_error <- chat_probe_error(chat)
+        probe_error <- chat_probe_cached(chat)
         if (!is.null(probe_error)) {
           lock(
             c(

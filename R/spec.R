@@ -245,8 +245,9 @@ set_messages <- function(
 #' @param check_model Whether the server sends the model a short test prompt
 #'   when the chat opens. If `TRUE`, a spinner covers the chat until the model
 #'   answers, and a failed request locks the survey with the `locked` message
-#'   of [set_messages()]. If `FALSE`, the survey starts at once with no extra
-#'   request.
+#'   of [set_messages()]. The request has one try, and its result serves every
+#'   session that opens in the next 30 seconds, so most sessions add no
+#'   request. If `FALSE`, the survey starts at once with no extra request.
 #' @return `spec` with the new config.
 #' @export
 #' @examples

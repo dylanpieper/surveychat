@@ -2,18 +2,20 @@
 # returns the next scripted reply; a reply that is a condition is thrown.
 # `$log$prompts` records each prompt and `$log$types` each schema. chat()
 # answers the start probe with `.probe`; a `.probe` that is a condition is
-# thrown.
+# thrown. `$log$probes` counts the chat() calls.
 fake_chat <- function(..., .probe = "OK") {
   replies <- list(...)
   log <- new.env()
   log$prompts <- character()
   log$types <- list()
+  log$probes <- 0
   chat <- structure(
     list(
       log = log,
       clone = function() chat,
       set_turns = function(turns) chat,
       chat = function(...) {
+        log$probes <- log$probes + 1
         if (inherits(.probe, "condition")) {
           stop(.probe)
         }
