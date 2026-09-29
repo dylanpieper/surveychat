@@ -43,8 +43,8 @@ set_messages(
 
 - locked:
 
-  The text that replaces the chat input when the chat is not set up, for
-  example when the API key is missing.
+  The text that covers the chat when the survey cannot start: the API
+  key is missing, or the model does not answer when the chat opens.
 
 - suggested:
 

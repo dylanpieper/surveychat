@@ -179,11 +179,14 @@ Each call changes only the fields that it names.
 | Function | Fields |
 |----|----|
 | [`set_messages()`](https://dylanpieper.github.io/surveychat/reference/set_messages.md) | `welcome`, `retry`, `completion`, `closed`, `locked`, `suggested` |
-| [`set_config()`](https://dylanpieper.github.io/surveychat/reference/set_config.md) | `tries`, `response_delay`, `character_delay`, `delay_variance`, `version`, `valid`, `skip_answered` |
+| [`set_config()`](https://dylanpieper.github.io/surveychat/reference/set_config.md) | `tries`, `response_delay`, `character_delay`, `delay_variance`, `version`, `valid`, `skip_answered`, `check_model` |
 
-`locked` shows in place of the chat input when the chat cannot
-authenticate, for example when the API key is missing. The server then
-writes nothing to the database.
+The `locked` message covers the chat when the survey cannot start. This
+occurs when the chat cannot authenticate, for example when the API key
+is missing, or when the model does not answer a short test prompt as the
+chat opens, for example after an HTTP error. The server then writes
+nothing to the database. To turn off the test prompt and its spinner,
+use `set_config(check_model = FALSE)`.
 
 ## Databases
 

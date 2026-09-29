@@ -62,8 +62,13 @@ cue, and a footer that shows the closing message.
 ## Start
 
 The survey starts when the chat first shows on the screen. Then the
-server writes the session row and sends the welcome. A chat in a closed
-sidebar starts when the user opens the sidebar.
+server sends the model a short test prompt. If the model answers with
+text, the server writes the session row and sends the welcome. If the
+request fails, for example with an HTTP error, the survey locks and
+shows the `locked` message of
+[`set_messages()`](https://dylanpieper.github.io/surveychat/reference/set_messages.md).
+A chat in a closed sidebar starts when the user opens the sidebar. To
+skip the test prompt, use `set_config(check_model = FALSE)`.
 
 ## Examples
 

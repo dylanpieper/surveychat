@@ -275,15 +275,18 @@ every question.</p>
 <td>
 <code>tries</code>, <code>response_delay</code>,
 <code>character_delay</code>, <code>delay_variance</code>,
-<code>version</code>, <code>valid</code>,
-<code>skip_answered</code>
+<code>version</code>, <code>valid</code>, <code>skip_answered</code>,
+<code>check_model</code>
 </td>
 </tr>
 </tbody>
 </table>
-<p><code>locked</code> shows in place of the chat input when the chat
-cannot authenticate, for example when the API key is missing. The server
-then writes nothing to the database.</p>
+<p>The <code>locked</code> message covers the chat when the survey
+cannot start. This occurs when the chat cannot authenticate, for example
+when the API key is missing, or when the model does not answer a short
+test prompt as the chat opens, for example after an HTTP error. The
+server then writes nothing to the database. To turn off the test prompt
+and its spinner, use <code>set_config(check_model = FALSE)</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="databases">Databases<a class="anchor" aria-label="anchor" href="#databases"></a>

@@ -14,7 +14,8 @@ set_config(
   delay_variance = NULL,
   version = NULL,
   valid = NULL,
-  skip_answered = NULL
+  skip_answered = NULL,
+  check_model = NULL
 )
 ```
 
@@ -60,6 +61,17 @@ set_config(
   records them and does not ask those questions. Adaptive questions are
   always asked. In the database, such an answer has no `question_text`,
   and `answer_raw` is the reply that gave it.
+
+- check_model:
+
+  Whether the server sends the model a short test prompt when the chat
+  opens. If `TRUE`, a spinner covers the chat until the model answers,
+  and a failed request locks the survey with the `locked` message of
+  [`set_messages()`](https://dylanpieper.github.io/surveychat/reference/set_messages.md).
+  The request has one try. A success serves every session that opens in
+  the next 30 seconds, so most sessions add no request. A failure serves
+  the sessions of the next 5 seconds. If `FALSE`, the survey starts at
+  once with no extra request.
 
 ## Value
 

@@ -105,8 +105,12 @@ cue, and a footer that shows the closing message.</p>
 
 
 <p>The survey starts when the chat first shows on the screen. Then the server
-writes the session row and sends the welcome. A chat in a closed sidebar
-starts when the user opens the sidebar.</p>
+sends the model a short test prompt. If the model answers with text, the
+server writes the session row and sends the welcome. If the request fails,
+for example with an HTTP error, the survey locks and shows the <code>locked</code>
+message of <code><a href="set_messages.html">set_messages()</a></code>. A chat in a closed sidebar starts when the user
+opens the sidebar. To skip the test prompt, use
+<code>set_config(check_model = FALSE)</code>.</p>
     </div>
 
     <div class="section level2">

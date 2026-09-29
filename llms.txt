@@ -28,8 +28,9 @@ surveychat::run_example("icecream")
 ```
 
 ![The web page of an ice cream shop. A side panel on the right shows the
-flavor survey chat, which asks for the name of the user and shows a card
-to stay anonymous.](reference/figures/icecream.png)
+survey chat. The bot, RoboScoop, greets the user, asks for their name
+with a card to stay anonymous, and then asks for their favorite
+flavor.](reference/figures/icecream.png)
 
 The source is in
 [`inst/examples/icecream/app.R`](https://github.com/dylanpieper/surveychat/blob/main/inst/examples/icecream/app.R).
