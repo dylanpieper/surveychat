@@ -10,25 +10,36 @@ pak::pak("dylanpieper/surveychat")
 
 ## Example 🍦✨
 
-The package includes a demo: the web page of an ice cream shop with a flavor survey in a side panel. The survey asks about the favorites of the user, and a drawer beside the chat shows the answers so far. You choose the model with `chat`. The provider reads its own key variable, such as `ANTHROPIC_API_KEY`. Put the key in `~/.Renviron` (`usethis::edit_r_environ()`) and restart R.
+The package includes a demo: the web page of an ice cream shop with a flavor survey in a side panel. The survey asks about the favorites of the user, and a drawer beside the chat shows the answers so far. You choose the model with `chat`. The provider reads its own key variable, such as `ANTHROPIC_API_KEY`.
 
 ``` r
 surveychat::run_example("icecream", chat = "anthropic/claude-haiku-4-5")
 ```
 
-Pass `"provider/model"` to use another model, such as `"openai/gpt-4.1-mini"`. To set the model once, put `SURVEYCHAT_CHAT` in `~/.Renviron`. The model must support structured output.
+Pass `"provider/model"` to use another model. To set the model once, put `SURVEYCHAT_MODEL` in `~/.Renviron`. The model must support structured output.
 
 <img src="man/figures/icecream.png" alt="The web page of an ice cream shop. A side panel on the right shows the survey chat. The bot, RoboScoop, greets the user, asks for their name with a card to stay anonymous, and then asks for their favorite flavor." width="100%"/>
 
 The source is in [`inst/examples/icecream/app.R`](https://github.com/dylanpieper/surveychat/blob/main/inst/examples/icecream/app.R).
+
+The `"demographics"` example shows a form and the AI chat side by side. The user can answer each question in either view, and the other view dims:
+
+``` r
+surveychat::run_example("demographics", chat = "anthropic/claude-haiku-4-5")
+```
+
+<img src="man/figures/demographics.gif" alt="A survey card titled Tell us about you. On the left, a form asks How old are you? with a Next button. On the right, the AI chat asks the same question. The user types an answer in the chat, and the form dims while the chat is in use. Three icon buttons in the header show both views, the form alone, or the chat alone." width="100%"/>
+
+The source is in [`inst/examples/demographics/app.R`](https://github.com/dylanpieper/surveychat/blob/main/inst/examples/demographics/app.R).
 
 ## Key Features
 
 -   **LLM extraction** with structured schemas that validate and retry invalid answers, and that record answers to later questions so the survey does not ask again
 -   **Adaptive questions and generated content** based on the previous answers of the user
 -   **Choice cards** from a fixed list, an enum, or the LLM; the user can also type an answer
+-   **Form, chat, or both side by side**: the user can change the view at any question; a fixed choice in the form needs no LLM call, and typed text gets the same check as the chat
 -   **SQL storage** of raw and extracted answers, retry counts, and timings
--   **Chat UI** as a full page or in any layout, such as a sidebar, with a progress cue and an optional drawer for the answers
+-   **Chat UI** in any layout, full page or sidebar, with an optional progress cue and drawer for the answers
 
 ## Usage
 
@@ -112,10 +123,10 @@ Use `set_messages()` to change the welcome, retry, and closing messages, and `se
 |-----------------|-------------------------------------------------------|
 | Keys | `response_id`, `session_id`, `question_id`, `question_order` |
 | Exchange | `question_text`, `answer_raw`, `answer_extracted` |
-| Quality | `valid`, `retry_attempt` |
+| Quality | `valid`, `retry_attempt`, `method` (`chat` or `form`) |
 | Timing | `responded_at`, `duration_seconds` |
 
-An answer that came early, in the reply to an earlier question, has no `question_text`. A skipped optional answer has no `answer_extracted`.
+An answer that came early, in the reply to an earlier question, has no `question_text`. A skipped optional answer has no `answer_extracted`. A form answer has no `valid` flag when the LLM check failed.
 
 ## Analyze the Data
 
