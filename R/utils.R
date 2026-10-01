@@ -87,6 +87,21 @@ suggestion_cards <- function(choices) {
   paste(spans, collapse = "\n")
 }
 
+# The chat message of a question prompt: the intro and the text, then the
+# choice cards if there are any. Generated choices come after the
+# `suggested` note, which tells the user that they are from the LLM; the
+# fixed choices follow in their own list, so they always show.
+chat_message <- function(prompt, suggested) {
+  ideas <- if (length(prompt$generated) > 0) {
+    paste0(suggested, "\n\n", suggestion_cards(prompt$generated))
+  }
+  cards <- c(ideas, suggestion_cards(prompt$fixed))
+  c(
+    paste(c(prompt$intro, prompt$text), collapse = "\n\n"),
+    if (length(cards) > 0) paste(cards, collapse = "\n\n")
+  )
+}
+
 capitalize_first <- function(text) {
   paste0(toupper(substr(text, 1, 1)), substr(text, 2, nchar(text)))
 }

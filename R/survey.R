@@ -2,8 +2,14 @@
 #
 # The server makes one SurveySession for each Shiny session. It holds the
 # answers, writes each reply to the database, and returns the next message.
-# `process_input()` returns `list(message, complete)`; `message` is NULL while
-# an earlier reply is still in progress or after the survey is complete.
+# A reply comes from the chat (`process_input()`) or the form
+# (`submit_form()`). Both return `list(message, complete)`; `message` is NULL
+# while an earlier reply is still in progress or after the survey is
+# complete. A form value with the wrong type also gives `error`.
+#
+# Each question is rendered once into a prompt, `list(id, intro, text,
+# generated, fixed)`. The chat shows it as a message and the form as an
+# input, so a switch between the views generates nothing again.
 
 SurveySession <- R6::R6Class(
   "SurveySession",
@@ -30,7 +36,15 @@ SurveySession <- R6::R6Class(
 
     # The first question can have an intro, but it is never adaptive
     first_question = function() {
-      private$render(1)
+      private$message(private$render(1))
+    },
+
+    # The prompt of the current question, or NULL after the survey
+    current_prompt = function() {
+      if (private$q_num > length(private$questions)) {
+        return(NULL)
+      }
+      private$current
     },
 
     # The accepted answers so far, named by question id
@@ -61,12 +75,18 @@ SurveySession <- R6::R6Class(
         {
           extracted <- extract_response(
             private$chat,
-            private$shown_text,
+            private$current$text,
             user_input,
             extraction_schema(question, later, private$answers),
             early = length(later) > 0
           )
-          private$record(question, user_input, extracted)
+          private$record(
+            question,
+            user_input,
+            extracted[[question$id]],
+            valid = isTRUE(extracted$valid),
+            method = "chat"
+          )
           extracted
         },
         error = function(err) {
@@ -80,34 +100,110 @@ SurveySession <- R6::R6Class(
       if (is.null(extracted)) {
         return(list(message = private$messages$retry, complete = FALSE))
       }
-      private$soft(
-        "the session duration",
-        update_session_duration(
-          private$con,
-          private$session_id,
-          elapsed(private$session_start)
-        )
-      )
+      private$update_duration()
       valid <- isTRUE(extracted$valid)
 
       if (!valid && private$retry_count < private$config$tries) {
-        private$retry_count <- private$retry_count + 1
-        private$soft(
-          "the retry count",
-          increment_retry(private$con, private$session_id)
-        )
-        return(list(message = private$messages$retry, complete = FALSE))
+        private$count_retry()
+        return(list(
+          message = private$retry_message(extracted),
+          complete = FALSE
+        ))
       }
 
-      # A skipped optional answer is not kept, so templates use a fallback
-      answer <- extracted[[question$id]]
-      if (any(!is.na(answer))) {
-        private$answers[[question$id]] <- answer
-      }
+      private$keep(question, extracted[[question$id]])
       # A reply kept only because the retries ran out gives no early answers
       if (valid) {
         private$take_early(later, extracted, user_input)
       }
+      private$retry_count <- 0
+      private$advance()
+    },
+
+    # Takes the answer to the current question from the form. A value with
+    # the wrong type records nothing and gives `error` for the user. Typed
+    # text, or any answer to a question with its own `valid` rule, goes
+    # through the same LLM extraction as the chat: an answer that is not
+    # valid is asked again, up to `tries` times, and gives the LLM hint or the
+    # retry message as `error`. A fixed choice needs no LLM call and is valid. If the LLM
+    # call fails, the form answer is kept with `valid = NA`.
+    submit_form = function(value) {
+      if (private$busy) {
+        return(list(message = NULL, complete = FALSE))
+      }
+      if (private$q_num > length(private$questions)) {
+        return(list(message = NULL, complete = TRUE))
+      }
+      private$busy <- TRUE
+      on.exit(private$busy <- FALSE)
+
+      question <- private$questions[[private$q_num]]
+      checked <- form_value(question, value)
+      if (!checked$ok) {
+        return(list(message = NULL, complete = FALSE, error = checked$error))
+      }
+      answer <- checked$value
+      valid <- TRUE
+      extracted <- NULL
+      if (form_needs_check(question, private$current, checked$raw)) {
+        extracted <- tryCatch(
+          extract_response(
+            private$chat,
+            private$current$text,
+            checked$raw,
+            question$schema
+          ),
+          error = function(err) {
+            cli::cli_warn(
+              "Could not check the form answer to question {.val {question$id}}; the survey keeps it.",
+              parent = err
+            )
+            NULL
+          }
+        )
+        if (is.null(extracted)) {
+          valid <- NA
+        } else {
+          answer <- extracted[[question$id]]
+          valid <- isTRUE(extracted$valid)
+        }
+      }
+      saved <- tryCatch(
+        {
+          private$record(
+            question,
+            checked$raw,
+            answer,
+            valid = valid,
+            method = "form"
+          )
+          TRUE
+        },
+        error = function(err) {
+          cli::cli_warn(
+            "Could not record the form answer to question {.val {question$id}}.",
+            parent = err
+          )
+          FALSE
+        }
+      )
+      if (!saved) {
+        return(list(
+          message = NULL,
+          complete = FALSE,
+          error = private$messages$retry
+        ))
+      }
+      private$update_duration()
+      if (isFALSE(valid) && private$retry_count < private$config$tries) {
+        private$count_retry()
+        return(list(
+          message = NULL,
+          complete = FALSE,
+          error = private$retry_message(extracted)
+        ))
+      }
+      private$keep(question, answer)
       private$retry_count <- 0
       private$advance()
     },
@@ -131,22 +227,61 @@ SurveySession <- R6::R6Class(
     q_num = 1,
     answers = list(),
     answered_early = character(),
-    shown_text = NULL,
+    current = NULL,
     retry_count = 0,
     busy = FALSE,
 
-    record = function(question, user_input, extracted) {
+    record = function(question, answer_raw, answer, valid, method) {
       save_response(
         private$con,
         session_id = private$session_id,
         question_id = question$id,
         question_order = private$q_num,
-        question_text = private$shown_text,
-        answer_raw = user_input,
-        answer_extracted = extracted[[question$id]],
-        valid = isTRUE(extracted$valid),
+        question_text = private$current$text,
+        answer_raw = answer_raw,
+        answer_extracted = answer,
+        valid = valid,
         retry_attempt = private$retry_count,
-        duration_seconds = elapsed(private$question_start)
+        duration_seconds = elapsed(private$question_start),
+        method = method
+      )
+    },
+
+    # A skipped optional answer is not kept, so templates use a fallback
+    keep = function(question, answer) {
+      if (any(!is.na(answer))) {
+        private$answers[[question$id]] <- answer
+      }
+      invisible(answer)
+    },
+
+    # The hint that the LLM wrote for an answer that is not valid, or the
+    # `retry` message if there is no hint
+    retry_message = function(extracted) {
+      hint <- extracted$retry_hint
+      if (rlang::is_string(hint) && !is.na(hint) && nzchar(trimws(hint))) {
+        return(trimws(hint))
+      }
+      private$messages$retry
+    },
+
+    # The chat and the form share one retry count for each question
+    count_retry = function() {
+      private$retry_count <- private$retry_count + 1
+      private$soft(
+        "the retry count",
+        increment_retry(private$con, private$session_id)
+      )
+    },
+
+    update_duration = function() {
+      private$soft(
+        "the session duration",
+        update_session_duration(
+          private$con,
+          private$session_id,
+          elapsed(private$session_start)
+        )
       )
     },
 
@@ -198,7 +333,8 @@ SurveySession <- R6::R6Class(
               question_text = NULL,
               answer_raw = user_input,
               answer_extracted = value,
-              valid = TRUE
+              valid = TRUE,
+              method = "chat"
             )
             TRUE
           },
@@ -231,16 +367,20 @@ SurveySession <- R6::R6Class(
         if (private$questions[[private$q_num]]$id %in% private$answered_early) {
           next
         }
-        message <- private$render(private$q_num)
-        if (!is.null(message)) {
-          return(list(message = message, complete = FALSE))
+        prompt <- private$render(private$q_num)
+        if (!is.null(prompt)) {
+          return(list(message = private$message(prompt), complete = FALSE))
         }
       }
     },
 
-    # Returns the message for question `i`, or NULL if its text cannot be made.
-    # The message is the typed text, then the choice cards if there are any.
-    # `shown_text` keeps the question alone, which the database records.
+    message = function(prompt) {
+      chat_message(prompt, private$messages$suggested)
+    },
+
+    # Makes the prompt of question `i` and keeps it as the current prompt.
+    # Returns NULL if its text cannot be made. `text` is the question alone,
+    # which the database records.
     render = function(i) {
       question <- private$questions[[i]]
       text <- if (is_adaptive(question)) {
@@ -251,22 +391,23 @@ SurveySession <- R6::R6Class(
       if (is.null(text)) {
         return(NULL)
       }
-      private$shown_text <- text
-      c(
-        paste(c(private$intro(question), text), collapse = "\n\n"),
-        private$cards(question)
+      private$current <- list(
+        id = question$id,
+        intro = private$intro(question),
+        text = text,
+        generated = private$generated(question),
+        fixed = question$choices$fixed
       )
+      private$current
     },
 
-    # The choice cards of a question, or NULL if it has none. Generated
-    # choices come after a note that tells the user they are from the LLM;
-    # the fixed choices follow in their own list, so they always show. If the
-    # generation fails, only the fixed choices show.
-    cards = function(question) {
+    # The choices that the LLM writes for a question, without those that
+    # repeat a fixed choice. NULL if the question has no choice prompt or the
+    # generation fails.
+    generated = function(question) {
       choices <- question$choices
-      fixed <- suggestion_cards(choices$fixed)
       if (is.null(choices$prompt)) {
-        return(fixed)
+        return(NULL)
       }
       generated <- tryCatch(
         generate_choices(private$chat, choices$prompt, private$answers),
@@ -279,11 +420,7 @@ SurveySession <- R6::R6Class(
         }
       )
       generated <- generated[!tolower(generated) %in% tolower(choices$fixed)]
-      ideas <- if (length(generated) > 0) {
-        paste0(private$messages$suggested, "\n\n", suggestion_cards(generated))
-      }
-      parts <- c(ideas, fixed)
-      if (length(parts) == 0) NULL else paste(parts, collapse = "\n\n")
+      if (length(generated) > 0) generated
     },
 
     # The generated intro of a question, or NULL if it has none or fails

@@ -19,7 +19,9 @@ set_messages(
 
 \item{welcome}{The first message of the survey.}
 
-\item{retry}{The message when an answer is not valid.}
+\item{retry}{The message when an answer is not valid and the LLM gives no
+hint. The extraction asks the LLM for a short hint that tells the user
+what to change, and the survey shows the hint if there is one.}
 
 \item{completion}{The message after the last answer. It can use \code{{id}}
 placeholders for any answer.}

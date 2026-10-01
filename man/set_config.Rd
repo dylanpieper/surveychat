@@ -13,7 +13,8 @@ set_config(
   version = NULL,
   valid = NULL,
   skip_answered = NULL,
-  check_model = NULL
+  check_model = NULL,
+  methods = NULL
 )
 }
 \arguments{
@@ -47,6 +48,16 @@ of \code{\link[=set_messages]{set_messages()}}. The request has one try. A succe
 session that opens in the next 5 minutes, so most sessions add no
 request. A failure serves the sessions of the next 5 seconds. If \code{FALSE},
 the survey starts at once with no extra request.}
+
+\item{methods}{How the user answers: \code{"chat"}, \code{"form"}, or both. The
+form shows one question at each step with a Shiny input. A fixed choice
+needs no LLM call. Typed text, and any answer to a question with its own
+\code{valid} rule, gets the same LLM check as the chat. With both, the survey
+starts
+with the form and the AI chat side by side, and three icon buttons in
+the header change the view at any question.
+The database records the \code{method} of each answer. The form needs
+\code{\link[=survey_panel_ui]{survey_panel_ui()}} or \code{\link[=survey_ui]{survey_ui()}}.}
 }
 \value{
 \code{spec} with the new config.
