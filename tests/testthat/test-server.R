@@ -396,7 +396,9 @@ test_that("the user can answer in the form, switch to the chat, and back", {
     list(why = "fresh", valid = FALSE),
     list(why = "fresh", valid = TRUE)
   )
-  spec <- test_spec() |> set_config(methods = c("form", "chat"))
+  spec <- test_spec() |>
+    set_config(methods = c("form", "chat")) |>
+    set_messages(completion = "**Bye {name}**")
 
   shiny::testServer(
     survey_server,
@@ -448,8 +450,12 @@ test_that("the user can answer in the form, switch to the chat, and back", {
       expect_match(as.character(output$form$html), "Why mint, Ana?")
 
       session$setInputs(form_next = 4)
-      # The form shows the completion message, which names the answers
-      expect_match(as.character(output$form$html), "Bye Ana")
+      # The form shows the completion message as markdown, with the answers
+      expect_match(
+        as.character(output$form$html),
+        "<strong>Bye Ana</strong>",
+        fixed = TRUE
+      )
       expect_equal(sent(user = TRUE), c("Ana", "it is fresh"))
     }
   )

@@ -93,6 +93,7 @@ shiny-chat-container.sb-chat[fill] { min-height: 0; }
 .sb-form-intro { color: var(--bs-secondary-color, #6c757d); }
 .sb-form .shiny-input-container { width: 100%; }
 .sb-form .sb-overlay.sb-locked { position: static; }
+.sb-form .sb-complete p { margin: 0; }
 "
 
 #' @rdname survey_server

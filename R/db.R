@@ -356,7 +356,11 @@ save_response <- function(
 ) {
   if (!is.null(method) && !rlang::is_string(method, c("chat", "form"))) {
     cli::cli_abort(
-      "{.arg method} must be {.val chat} or {.val form}, not {.obj_type_friendly {method}}."
+      if (rlang::is_string(method)) {
+        "{.arg method} must be {.val chat} or {.val form}, not {.val {method}}."
+      } else {
+        "{.arg method} must be {.val chat} or {.val form}, not {.obj_type_friendly {method}}."
+      }
     )
   }
   con <- checkout(con)

@@ -116,9 +116,13 @@ test_that("save_response() takes only a known method", {
   init_database(con, quiet = TRUE)
   id <- start_session(con)
 
-  expect_error(save_response(con, id, "q", 1, "Q?", "a", method = "web"))
   expect_error(
-    save_response(con, id, "q", 1, "Q?", "a", method = c("chat", "form"))
+    save_response(con, id, "q", 1, "Q?", "a", method = "web"),
+    'not "web"'
+  )
+  expect_error(
+    save_response(con, id, "q", 1, "Q?", "a", method = c("chat", "form")),
+    "not a character vector"
   )
   expect_equal(
     DBI::dbGetQuery(con, "SELECT COUNT(*) AS n FROM responses")$n,

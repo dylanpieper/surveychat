@@ -92,8 +92,11 @@ survey_server <- function(id, survey, chat, con, drawer = NULL) {
         waiting = survey_waiter(session$ns("form_waiter")),
         locked = survey_status(survey$messages$locked, "locked"),
         # The form-only view never shows the chat, so the form shows the
-        # completion message, which can name the answers
-        complete = survey_status(completion() %||% survey$messages$closed),
+        # completion message, which can name the answers, as markdown like
+        # the chat
+        complete = survey_status(
+          shiny::markdown(completion() %||% survey$messages$closed)
+        ),
         form_step(session$ns, prompt(), questions[[prompt()$id]])
       )
     })
