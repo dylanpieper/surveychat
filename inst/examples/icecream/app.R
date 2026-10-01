@@ -6,10 +6,10 @@ library(bslib)
 
 # Menu ----
 flavors <- list(
-  list("Mint Chip", "Cool mint with dark chocolate flakes.", "🌿"),
-  list("Salted Caramel", "Burnt sugar, sea salt, and cream.", "🍯"),
-  list("Strawberry", "Fresh berries from the farm down the road.", "🍓"),
-  list("Cookie Dough", "Brown sugar dough in vanilla bean.", "🍪")
+  list("Millie's Mint", "Cool mint with dark chocolate flakes.", "🌿"),
+  list("Carmen's Caramel", "Burnt sugar, sea salt, and cream.", "🍯"),
+  list("Sam's Strawberry", "Fresh berries from the farm down the road.", "🍓"),
+  list("Dylan's Dough", "Brown sugar dough in vanilla bean.", "🍪")
 )
 menu <- paste(
   vapply(flavors, \(flavor) flavor[[1]], character(1)),
@@ -19,7 +19,7 @@ menu <- paste(
 # Survey ----
 survey <- survey_spec(version = "1.0") |>
   set_messages(
-    welcome = "Hi, I'm RoboScoop! Your answers help us pick our next batch. 🍨",
+    welcome = "Hi, I'm RoboScoop! 🍨",
     retry = "Sorry, I had trouble understanding that. 🤔 Could you try again?",
     completion = paste(
       "Thanks, {name|friend}! Your scoop card is ready. 🍦✨"
@@ -28,7 +28,7 @@ survey <- survey_spec(version = "1.0") |>
   ) |>
   add_question(
     "name",
-    text = "Who do I have the pleasure of talking to? A first name is great, or you can stay anonymous.",
+    text = "Who do I have the pleasure of talking to? We might name our next batch after you!",
     answer = type_string(
       paste(
         "The first name or nickname the person gave, e.g. 'Dylan' from",
