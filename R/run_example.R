@@ -57,9 +57,9 @@ run_example <- function(name = "icecream", chat = NULL, ...) {
 }
 
 # Returns an ellmer chat. `NULL` reads SURVEYCHAT_CHAT; it is an error if that
-# is not set. A
-# string goes to ellmer::chat(); a bad provider keeps the ellmer error as the
-# parent. A chat object passes through. Any other value is an error.
+# is not set. A string goes to ellmer::chat(); a bad provider keeps the ellmer
+# error as the parent. A chat object passes through. Any other value is an
+# error.
 example_chat <- function(chat, call = rlang::caller_env()) {
   if (is.null(chat)) {
     chat <- Sys.getenv("SURVEYCHAT_CHAT")

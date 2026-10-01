@@ -159,9 +159,23 @@ test_that("example_chat() passes a Chat through and rejects other values", {
   withr::local_envvar(SURVEYCHAT_CHAT = NA)
   expect_snapshot(example_chat(NULL), error = TRUE)
   expect_snapshot(example_chat(1), error = TRUE)
+  expect_error(example_chat(""), "must be a string")
+  expect_error(example_chat(NA_character_), "must be a string")
+  expect_error(example_chat(c("openai", "ollama")), "must be a string")
+})
+
+test_that("example_chat() keeps the ellmer error for an unknown provider", {
+  local_mocked_bindings(
+    chat = \(...) stop("Can't find provider."),
+    .package = "ellmer"
+  )
+
+  err <- expect_error(example_chat("nope/x"), "Could not make a chat")
+  expect_match(conditionMessage(err$parent), "Can't find provider")
 })
 
 test_that("run_example() stops before runApp() when the credentials fail", {
+  skip_if_not_installed("RSQLite")
   fake_provider <- S7::new_class(
     "fake_provider",
     properties = list(credentials = S7::class_function)
@@ -178,6 +192,7 @@ test_that("run_example() stops before runApp() when the credentials fail", {
 })
 
 test_that("run_example() hands the chat to the app and resets the option", {
+  skip_if_not_installed("RSQLite")
   chat <- fake_chat()
   inside <- NULL
   local_mocked_bindings(
