@@ -93,7 +93,7 @@ shiny-chat-container.sb-chat[fill] { min-height: 0; }
 .sb-form-intro { color: var(--bs-secondary-color, #6c757d); }
 .sb-form .shiny-input-container { width: 100%; }
 .sb-form .sb-overlay.sb-locked { position: static; }
-.sb-form .sb-complete p { margin: 0; }
+.sb-status-text > :last-child { margin-bottom: 0; }
 "
 
 #' @rdname survey_server
@@ -406,7 +406,12 @@ survey_status <- function(message, status = c("complete", "locked")) {
     class = class,
     role = "status",
     htmltools::span(class = "sb-complete-icon", icon),
-    htmltools::span(message)
+    # Rendered markdown has block tags, so it goes in a div
+    if (inherits(message, "html")) {
+      htmltools::div(class = "sb-status-text", message)
+    } else {
+      htmltools::span(message)
+    }
   )
 }
 

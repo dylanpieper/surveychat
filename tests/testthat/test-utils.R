@@ -43,3 +43,25 @@ test_that("extract_variables() returns names in order of use", {
   expect_equal(extract_variables("none"), character(0))
   expect_equal(extract_variables(NULL), character(0))
 })
+
+test_that("render_message() keeps the template markdown and escapes answers", {
+  html <- as.character(render_message(
+    "**Thanks, {name}!** You chose {pick}.",
+    list(
+      name = "<img src=x onerror=alert(1)>",
+      pick = "*mint* [x](javascript:y)"
+    )
+  ))
+
+  expect_match(html, "<strong>Thanks, ", fixed = TRUE)
+  expect_match(html, "&lt;img src=x onerror=alert(1)&gt;", fixed = TRUE)
+  expect_no_match(html, "<img", fixed = TRUE)
+  expect_no_match(html, "<em>", fixed = TRUE)
+  expect_no_match(html, "<a ", fixed = TRUE)
+  expect_match(html, "*mint* [x](javascript:y)", fixed = TRUE)
+})
+
+test_that("escape_markdown() escapes ASCII punctuation only", {
+  expect_equal(escape_markdown("a*b"), "a\\*b")
+  expect_equal(escape_markdown("café ’"), "café ’")
+})

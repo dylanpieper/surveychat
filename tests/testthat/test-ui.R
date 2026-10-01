@@ -244,3 +244,12 @@ test_that("survey_panel_ui() puts the controls in the header with no title", {
     expect_match(html, 'id="x-progress"', fixed = TRUE)
   }
 })
+
+test_that("survey_status() puts rendered markdown in a block", {
+  plain <- as.character(survey_status("Done"))
+  rendered <- as.character(survey_status(shiny::markdown("Done\n\nBye")))
+
+  expect_match(plain, "<span>Done</span>", fixed = TRUE)
+  expect_match(rendered, '<div class="sb-status-text">', fixed = TRUE)
+  expect_equal(count_matches("<p>", rendered), 2)
+})

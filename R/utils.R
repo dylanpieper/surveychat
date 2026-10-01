@@ -5,8 +5,14 @@ placeholder_pattern <- "\\{([^}]+)\\}"
 # Replaces each {name} in `template` with `data[[name]]`. A missing value (such
 # as a skipped answer) uses the fallback of {name|fallback}, or else leaves the
 # bare name, so a template never fails. With `capitalize = TRUE`, a value that
-# starts a sentence gets an uppercase first letter.
-interpolate <- function(template, data, capitalize = FALSE) {
+# starts a sentence gets an uppercase first letter. `escape` changes each
+# replacement last, such as escape_markdown() for text that is rendered.
+interpolate <- function(
+  template,
+  data,
+  capitalize = FALSE,
+  escape = identity
+) {
   if (is.null(template)) {
     return(template)
   }
@@ -38,6 +44,7 @@ interpolate <- function(template, data, capitalize = FALSE) {
     if (capitalize && filled && grepl("(^|[.!?]\\s*)$", before)) {
       replacement <- capitalize_first(replacement)
     }
+    replacement <- escape(replacement)
     result <- paste0(
       before,
       replacement,
@@ -99,6 +106,20 @@ chat_message <- function(prompt, suggested) {
   c(
     paste(c(prompt$intro, prompt$text), collapse = "\n\n"),
     if (length(cards) > 0) paste(cards, collapse = "\n\n")
+  )
+}
+
+# Backslash-escapes each ASCII punctuation mark, so commonmark shows the text
+# as typed: no HTML, links, or emphasis from user input
+escape_markdown <- function(text) {
+  gsub("([!-/:-@\\[-`{-~])", "\\\\\\1", text, perl = TRUE)
+}
+
+# A message template as safe HTML: the template is markdown, and each answer
+# in it is escaped
+render_message <- function(template, answers) {
+  shiny::markdown(
+    interpolate(template, answers, capitalize = TRUE, escape = escape_markdown)
   )
 }
 

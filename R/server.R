@@ -92,11 +92,8 @@ survey_server <- function(id, survey, chat, con, drawer = NULL) {
         waiting = survey_waiter(session$ns("form_waiter")),
         locked = survey_status(survey$messages$locked, "locked"),
         # The form-only view never shows the chat, so the form shows the
-        # completion message, which can name the answers, as markdown like
-        # the chat
-        complete = survey_status(
-          shiny::markdown(completion() %||% survey$messages$closed)
-        ),
+        # completion message, rendered with the answers escaped
+        complete = survey_status(completion() %||% survey$messages$closed),
         form_step(session$ns, prompt(), questions[[prompt()$id]])
       )
     })
@@ -274,7 +271,10 @@ survey_server <- function(id, survey, chat, con, drawer = NULL) {
       fill_drawer(complete = result$complete)
       if (result$complete) {
         progress(list(current = total, complete = TRUE))
-        completion(result$message)
+        completion(render_message(
+          survey$messages$completion,
+          engine$answers_so_far()
+        ))
         status("complete")
         # Retire the input only after the closing message has streamed
         promises::then(send(result$message), \(...) finished(TRUE))
