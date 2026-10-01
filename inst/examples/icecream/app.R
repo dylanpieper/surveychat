@@ -223,7 +223,13 @@ theme <- bs_theme(
   )
 
 # Backends ----
-chat <- chat_claude(model = "claude-haiku-4-5-20251001", echo = "none")
+chat <- getOption("surveychat.example_chat")
+if (is.null(chat)) {
+  stop(
+    "Start this app with surveychat::run_example(), which sets the chat.",
+    call. = FALSE
+  )
+}
 con <- DBI::dbConnect(RSQLite::SQLite(), "survey.db")
 onStop(\() DBI::dbDisconnect(con))
 

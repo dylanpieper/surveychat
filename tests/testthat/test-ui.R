@@ -132,3 +132,62 @@ test_that("run_example() lists the examples and rejects an unknown name", {
   expect_true("icecream" %in% run_example(NULL))
   expect_snapshot(run_example("nope"), error = TRUE)
 })
+
+test_that("example_chat() resolves the env var and a string", {
+  seen <- NULL
+  local_mocked_bindings(
+    chat = function(name, ...) {
+      seen <<- list(name = name, args = list(...))
+      fake_chat()
+    },
+    .package = "ellmer"
+  )
+
+  withr::local_envvar(SURVEYCHAT_CHAT = "ollama/llama3.2")
+  example_chat(NULL)
+  expect_equal(seen$name, "ollama/llama3.2")
+  expect_equal(seen$args$echo, "none")
+
+  example_chat("openai")
+  expect_equal(seen$name, "openai")
+  expect_equal(seen$args$echo, "none")
+})
+
+test_that("example_chat() passes a Chat through and rejects other values", {
+  chat <- fake_chat()
+  expect_identical(example_chat(chat), chat)
+  withr::local_envvar(SURVEYCHAT_CHAT = NA)
+  expect_snapshot(example_chat(NULL), error = TRUE)
+  expect_snapshot(example_chat(1), error = TRUE)
+})
+
+test_that("run_example() stops before runApp() when the credentials fail", {
+  fake_provider <- S7::new_class(
+    "fake_provider",
+    properties = list(credentials = S7::class_function)
+  )
+  chat <- list(
+    get_provider = \() fake_provider(credentials = \() stop("no key"))
+  )
+  class(chat) <- "Chat"
+  ran <- FALSE
+  local_mocked_bindings(runApp = \(...) ran <<- TRUE, .package = "shiny")
+
+  expect_snapshot(run_example(chat = chat), error = TRUE)
+  expect_false(ran)
+})
+
+test_that("run_example() hands the chat to the app and resets the option", {
+  chat <- fake_chat()
+  inside <- NULL
+  local_mocked_bindings(
+    runApp = \(...) inside <<- getOption("surveychat.example_chat"),
+    .package = "shiny"
+  )
+  withr::local_options(surveychat.example_chat = "old")
+
+  run_example(chat = chat)
+
+  expect_identical(inside, chat)
+  expect_equal(getOption("surveychat.example_chat"), "old")
+})

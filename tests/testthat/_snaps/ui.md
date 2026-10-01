@@ -69,3 +69,33 @@
       ! There is no example named "nope".
       i The examples are "icecream".
 
+# example_chat() passes a Chat through and rejects other values
+
+    Code
+      example_chat(NULL)
+    Condition
+      Error:
+      ! No chat is set for the example.
+      i Set `chat`, such as `chat = "openai/gpt-4.1-mini"`, or set the environment variable `SURVEYCHAT_CHAT`.
+
+---
+
+    Code
+      example_chat(1)
+    Condition
+      Error:
+      ! `chat` must be a string, an ellmer chat, or `NULL`.
+      i A string is "provider/model" or "provider".
+      x You supplied a number.
+
+# run_example() stops before runApp() when the credentials fail
+
+    Code
+      run_example(chat = chat)
+    Condition
+      Error in `run_example()`:
+      ! The chat is not set up.
+      i Check the credentials of the provider, such as its API key in '~/.Renviron', then restart R.
+      Caused by error in `credentials()`:
+      ! no key
+
