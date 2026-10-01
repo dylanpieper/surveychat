@@ -31,6 +31,9 @@ shiny-chat-container.sb-chat { position: relative; }
 .sidebar-content:not(:has(> .sidebar-title)) > shiny-chat-container.sb-chat {
   padding-top: 2.5rem;
 }
+/* shinychat adds a top inset for its drawer button once the drawer has
+   content. The button is hidden here, so the inset only adds empty space */
+shiny-chat-container.sb-chat .shiny-chat-messages { padding-block-start: 0; }
 .sb-overlay {
   position: absolute; inset: 0; z-index: 10;
   display: flex; flex-direction: column; align-items: center;
