@@ -354,6 +354,11 @@ save_response <- function(
   duration_seconds = NULL,
   method = NULL
 ) {
+  if (!is.null(method) && !rlang::is_string(method, c("chat", "form"))) {
+    cli::cli_abort(
+      "{.arg method} must be {.val chat} or {.val form}, not {.obj_type_friendly {method}}."
+    )
+  }
   con <- checkout(con)
   insert_row(
     con,

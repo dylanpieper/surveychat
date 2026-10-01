@@ -17,7 +17,7 @@ test_that("survey_ui() namespaces its ids", {
   expect_match(html, 'id="survey-progress"', fixed = TRUE)
   expect_match(html, 'id="survey-footer"', fixed = TRUE)
   # The progress cue is in the header only
-  expect_length(gregexpr('id="survey-progress"', html)[[1]], 1)
+  expect_equal(count_matches('id="survey-progress"', html), 1)
 })
 
 test_that("survey_chat_ui() makes a chat with a footer and an optional drawer", {
@@ -69,7 +69,7 @@ test_that("two survey chats on one page add the styles once", {
     survey_chat_ui("a"),
     survey_chat_ui("b")
   ))$head
-  expect_length(gregexpr(".sb-progress {", head, fixed = TRUE)[[1]], 1)
+  expect_equal(count_matches(".sb-progress {", head, fixed = TRUE), 1)
 })
 
 test_that("survey_chat_ui() checks its arguments", {
@@ -216,7 +216,7 @@ test_that("survey_panel_ui() holds the chat and the form behind the view", {
   expect_match(html, 'id="survey-chat"', fixed = TRUE)
   expect_match(html, "output.view === &#39;both&#39;", fixed = TRUE)
   expect_match(html, "output.view === &#39;form&#39;", fixed = TRUE)
-  expect_length(gregexpr('data-ns-prefix="survey-"', html)[[1]], 2)
+  expect_equal(count_matches('data-ns-prefix="survey-"', html), 2)
   expect_error(survey_panel_ui("survey", title = 1), "title")
 })
 
@@ -225,10 +225,22 @@ test_that("the view picker is one radio group of three icon buttons", {
 
   expect_match(html, 'id="survey-view_pick"', fixed = TRUE)
   expect_match(html, "shiny-input-radiogroup", fixed = TRUE)
-  expect_length(gregexpr('name="survey-view_pick"', html)[[1]], 3)
+  expect_equal(count_matches('name="survey-view_pick"', html), 3)
   expect_match(html, 'value="form" autocomplete="off" checked', fixed = TRUE)
-  expect_length(gregexpr("checked", html)[[1]], 1)
+  expect_equal(count_matches("checked", html), 1)
   for (label in c("Form", "AI chat", "Side by side")) {
     expect_match(html, sprintf('aria-label="%s"', label), fixed = TRUE)
+  }
+})
+
+test_that("survey_panel_ui() puts the controls in the header with no title", {
+  untitled <- as.character(survey_panel_ui("x"))
+  titled <- as.character(survey_panel_ui("x", title = "About you"))
+
+  expect_no_match(untitled, "About you", fixed = TRUE)
+  expect_match(titled, "<span>About you</span>", fixed = TRUE)
+  for (html in c(untitled, titled)) {
+    expect_match(html, 'id="x-method"', fixed = TRUE)
+    expect_match(html, 'id="x-progress"', fixed = TRUE)
   }
 })

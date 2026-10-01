@@ -26,10 +26,12 @@ The names of the examples if \code{name} is \code{NULL}. Otherwise, no
 value; the app runs until you stop it.
 }
 \description{
-Starts an example app that ships with the package. Each example stores the
-answers with RSQLite:
+Starts an example app that ships with the package and stores the answers
+with RSQLite. You choose the model with \code{chat}, or with the environment
+variable \code{SURVEYCHAT_MODEL}. The model must support structured output.
 }
 \details{
+The examples are:
 \itemize{
 \item \code{"icecream"}: the web page of an ice cream shop with a flavor survey in
 a side panel.
@@ -37,9 +39,6 @@ a side panel.
 starts with the form and the AI chat side by side, and the user can
 show one of them alone.
 }
-
-You choose the model with \code{chat}, or with the environment variable
-\code{SURVEYCHAT_MODEL}. The model must support structured output.
 }
 \examples{
 run_example(NULL)

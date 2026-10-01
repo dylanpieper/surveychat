@@ -110,3 +110,18 @@ test_that("an unknown driver falls back when RETURNING fails", {
   expect_equal(c(start_session(con), start_session(con)), c(1, 2))
   expect_equal(attempts, 2)
 })
+
+test_that("save_response() takes only a known method", {
+  con <- local_sqlite()
+  init_database(con, quiet = TRUE)
+  id <- start_session(con)
+
+  expect_error(save_response(con, id, "q", 1, "Q?", "a", method = "web"))
+  expect_error(
+    save_response(con, id, "q", 1, "Q?", "a", method = c("chat", "form"))
+  )
+  expect_equal(
+    DBI::dbGetQuery(con, "SELECT COUNT(*) AS n FROM responses")$n,
+    0
+  )
+})

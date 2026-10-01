@@ -27,9 +27,11 @@
 #' `set_config(check_model = FALSE)`. A survey that shows the form at the
 #' start (see the `methods` of [set_config()]) starts when the page loads.
 #' @section Form:
-#' In the form view, each answer is written to the chat transcript as a user
-#' message after the question, so the chat shows the full survey when the
-#' user switches to it.
+#' Each kept form answer is written to the chat transcript as a user message
+#' after its question, so the chat shows the survey when the user switches to
+#' it. A form answer that is asked again shows its hint under the field only.
+#' When the survey is complete, the form shows the `completion` message of
+#' [set_messages()].
 #' @export
 #' @examplesIf interactive() && rlang::is_installed("RSQLite")
 #' library(shiny)
@@ -67,6 +69,7 @@ survey_server <- function(id, survey, chat, con, drawer = NULL) {
     status <- shiny::reactiveVal("waiting")
     prompt <- shiny::reactiveVal(NULL)
     form_error <- shiny::reactiveVal(NULL)
+    completion <- shiny::reactiveVal(NULL)
 
     output$view <- shiny::renderText(view())
     shiny::outputOptions(output, "view", suspendWhenHidden = FALSE)
@@ -88,7 +91,9 @@ survey_server <- function(id, survey, chat, con, drawer = NULL) {
         status(),
         waiting = survey_waiter(session$ns("form_waiter")),
         locked = survey_status(survey$messages$locked, "locked"),
-        complete = survey_status(survey$messages$closed),
+        # The form-only view never shows the chat, so the form shows the
+        # completion message, which can name the answers
+        complete = survey_status(completion() %||% survey$messages$closed),
         form_step(session$ns, prompt(), questions[[prompt()$id]])
       )
     })
@@ -266,6 +271,7 @@ survey_server <- function(id, survey, chat, con, drawer = NULL) {
       fill_drawer(complete = result$complete)
       if (result$complete) {
         progress(list(current = total, complete = TRUE))
+        completion(result$message)
         status("complete")
         # Retire the input only after the closing message has streamed
         promises::then(send(result$message), \(...) finished(TRUE))
@@ -294,8 +300,8 @@ survey_server <- function(id, survey, chat, con, drawer = NULL) {
       step(result)
     })
 
-    # A form answer goes into the chat as a user message, so the transcript
-    # is complete when the user switches to the chat
+    # A kept form answer goes into the chat as a user message, as the user
+    # saw it, so the chat shows each kept answer after its question
     shiny::observeEvent(input$form_next, {
       current <- prompt()
       if (is.null(engine) || is.null(current)) {
@@ -319,10 +325,13 @@ survey_server <- function(id, survey, chat, con, drawer = NULL) {
       if (is.null(result$message)) {
         return()
       }
-      reply <- form_text(value)
       shinychat::chat_append(
         "chat",
-        if (nzchar(reply)) reply else "(skipped)",
+        form_echo(
+          questions[[current$id]],
+          form_text(value),
+          survey$messages$skipped
+        ),
         role = "user",
         session = session
       )

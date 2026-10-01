@@ -54,9 +54,11 @@ start (see the \code{methods} of \code{\link[=set_config]{set_config()}}) starts
 
 \section{Form}{
 
-In the form view, each answer is written to the chat transcript as a user
-message after the question, so the chat shows the full survey when the
-user switches to it.
+Each kept form answer is written to the chat transcript as a user message
+after its question, so the chat shows the survey when the user switches to
+it. A form answer that is asked again shows its hint under the field only.
+When the survey is complete, the form shows the \code{completion} message of
+\code{\link[=set_messages]{set_messages()}}.
 }
 
 \examples{

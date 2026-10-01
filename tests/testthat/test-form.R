@@ -111,3 +111,32 @@ test_that("form_read() combines the chosen card and the typed text", {
   )
   expect_equal(form_read(input, list(id = "q"), question), "Plain")
 })
+
+test_that("form_value() refuses numbers outside the range of the type", {
+  integer <- question_of(ellmer::type_integer("Age"))
+  number <- question_of(ellmer::type_number("Height"))
+
+  expect_match(form_value(integer, 1e10)$error, "whole number")
+  expect_match(form_value(integer, "Inf")$error, "whole number")
+  expect_match(form_value(number, "Inf")$error, "number")
+  expect_match(form_value(number, NaN)$error, "answer this question")
+})
+
+test_that("form_text() writes numbers without scientific notation", {
+  expect_equal(form_text(100000), "100000")
+  expect_equal(form_text(1.75), "1.75")
+  expect_equal(
+    form_value(question_of(ellmer::type_integer()), 100000)$raw,
+    "100000"
+  )
+})
+
+test_that("form_echo() shows the label of a yes or no choice", {
+  boolean <- question_of(ellmer::type_boolean())
+  string <- question_of(ellmer::type_string())
+
+  expect_equal(form_echo(boolean, "TRUE", "(skipped)"), "Yes")
+  expect_equal(form_echo(boolean, "FALSE", "(skipped)"), "No")
+  expect_equal(form_echo(string, "Ana", "(skipped)"), "Ana")
+  expect_equal(form_echo(string, "", "(none)"), "(none)")
+})

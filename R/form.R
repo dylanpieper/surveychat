@@ -26,7 +26,10 @@ form_value <- function(question, value) {
     },
     integer = {
       number <- suppressWarnings(as.numeric(raw))
-      if (is.na(number) || number != round(number)) {
+      whole <- is.finite(number) &&
+        number == round(number) &&
+        abs(number) <= .Machine$integer.max
+      if (!whole) {
         form_error("Enter a whole number.")
       } else {
         form_ok(as.integer(number), raw)
@@ -34,7 +37,7 @@ form_value <- function(question, value) {
     },
     number = {
       number <- suppressWarnings(as.numeric(raw))
-      if (is.na(number)) {
+      if (!is.finite(number)) {
         form_error("Enter a number.")
       } else {
         form_ok(number, raw)
@@ -128,12 +131,32 @@ answer_kind <- function(type) {
   if (inherits(type, "ellmer::TypeEnum")) "enum" else type@type
 }
 
-# One trimmed string from an input value; "" for no value
+# One trimmed string from an input value; "" for no value. A number never
+# uses scientific notation, so 100000 is "100000", not "1e+05".
 form_text <- function(value) {
   if (length(value) == 0 || is.na(value[[1]])) {
     return("")
   }
-  trimws(as.character(value[[1]]))
+  value <- value[[1]]
+  if (is.numeric(value)) {
+    return(format(value, scientific = FALSE, trim = TRUE, digits = 15))
+  }
+  trimws(as.character(value))
+}
+
+# The reply as the user saw it, for the chat transcript: the label of a
+# yes or no choice, or `skipped` for no answer
+form_echo <- function(question, raw, skipped) {
+  if (!nzchar(raw)) {
+    return(skipped)
+  }
+  if (answer_kind(question$answer) == "boolean") {
+    flag <- as.logical(raw)
+    if (!is.na(flag)) {
+      return(if (flag) "Yes" else "No")
+    }
+  }
+  raw
 }
 
 form_ok <- function(value, raw) {

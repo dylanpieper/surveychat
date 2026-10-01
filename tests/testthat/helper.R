@@ -151,3 +151,8 @@ test_spec <- function() {
       answer = ellmer::type_string("Reason")
     )
 }
+
+# The number of matches of `pattern` in `text`; 0 when there is none
+count_matches <- function(pattern, text, fixed = FALSE) {
+  sum(gregexpr(pattern, text, fixed = fixed)[[1]] > 0)
+}

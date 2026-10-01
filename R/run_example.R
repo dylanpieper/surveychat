@@ -1,16 +1,17 @@
 #' Run an example survey
 #'
-#' Starts an example app that ships with the package. Each example stores the
-#' answers with RSQLite:
+#' Starts an example app that ships with the package and stores the answers
+#' with RSQLite. You choose the model with `chat`, or with the environment
+#' variable `SURVEYCHAT_MODEL`. The model must support structured output.
+#'
+#' @details
+#' The examples are:
 #'
 #' * `"icecream"`: the web page of an ice cream shop with a flavor survey in
 #'   a side panel.
 #' * `"demographics"`: a plain page with six questions about the user. It
 #'   starts with the form and the AI chat side by side, and the user can
 #'   show one of them alone.
-#'
-#' You choose the model with `chat`, or with the environment variable
-#' `SURVEYCHAT_MODEL`. The model must support structured output.
 #'
 #' @param name The name of the example. Call `run_example(NULL)` to list the
 #'   names.

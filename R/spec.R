@@ -195,6 +195,8 @@ prompt_llm <- function(prompt, format = NULL) {
 #'   the API key is missing, or the model does not answer when the chat opens.
 #' @param suggested The note before choices that the LLM writes. See the
 #'   `choices` argument of [add_question()].
+#' @param skipped The text that the chat transcript shows for an optional
+#'   question that the user skipped in the form.
 #' @return `spec` with the new messages.
 #' @export
 #' @examples
@@ -207,7 +209,8 @@ set_messages <- function(
   completion = NULL,
   closed = NULL,
   locked = NULL,
-  suggested = NULL
+  suggested = NULL,
+  skipped = NULL
 ) {
   check_spec(spec)
   given <- compact(list(
@@ -216,7 +219,8 @@ set_messages <- function(
     completion = completion,
     closed = closed,
     locked = locked,
-    suggested = suggested
+    suggested = suggested,
+    skipped = skipped
   ))
   for (name in names(given)) {
     check_string(given[[name]], arg = name)
@@ -255,11 +259,10 @@ set_messages <- function(
 #'   form shows one question at each step with a Shiny input. A fixed choice
 #'   needs no LLM call. Typed text, and any answer to a question with its own
 #'   `valid` rule, gets the same LLM check as the chat. With both, the survey
-#'   starts
-#'   with the form and the AI chat side by side, and three icon buttons in
-#'   the header change the view at any question.
-#'   The database records the `method` of each answer. The form needs
-#'   [survey_panel_ui()] or [survey_ui()].
+#'   starts with the form and the AI chat side by side, and three icon
+#'   buttons in the header change the view at any question. The database
+#'   records the `method` of each answer. The form needs [survey_panel_ui()]
+#'   or [survey_ui()].
 #' @return `spec` with the new config.
 #' @export
 #' @examples
@@ -392,7 +395,8 @@ default_messages <- function() {
     completion = "Thank you! Your answers are recorded.",
     closed = "Survey complete. Thank you!",
     locked = "Sorry, the service is unavailable right now.",
-    suggested = "*Ideas from AI. Pick one or type your own.*"
+    suggested = "*Ideas from AI. Pick one or type your own.*",
+    skipped = "(skipped)"
   )
 }
 

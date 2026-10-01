@@ -11,7 +11,8 @@ set_messages(
   completion = NULL,
   closed = NULL,
   locked = NULL,
-  suggested = NULL
+  suggested = NULL,
+  skipped = NULL
 )
 }
 \arguments{
@@ -33,6 +34,9 @@ the API key is missing, or the model does not answer when the chat opens.}
 
 \item{suggested}{The note before choices that the LLM writes. See the
 \code{choices} argument of \code{\link[=add_question]{add_question()}}.}
+
+\item{skipped}{The text that the chat transcript shows for an optional
+question that the user skipped in the form.}
 }
 \value{
 \code{spec} with the new messages.

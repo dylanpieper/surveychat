@@ -448,7 +448,9 @@ test_that("the user can answer in the form, switch to the chat, and back", {
       expect_match(as.character(output$form$html), "Why mint, Ana?")
 
       session$setInputs(form_next = 4)
-      expect_match(as.character(output$form$html), "Survey complete")
+      # The form shows the completion message, which names the answers
+      expect_match(as.character(output$form$html), "Bye Ana")
+      expect_equal(sent(user = TRUE), c("Ana", "it is fresh"))
     }
   )
 
