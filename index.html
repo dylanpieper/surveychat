@@ -82,11 +82,12 @@
 <div class="section level2">
 <h2 id="example-icecreamsparkles">Example 🍦✨<a class="anchor" aria-label="anchor" href="#example-icecreamsparkles"></a>
 </h2>
-<p>The package includes a demo: the web page of an ice cream shop with a flavor survey in a side panel. The survey asks about the favorites of the user, and a drawer beside the chat shows the answers so far. The demo uses <code><a href="https://ellmer.tidyverse.org/reference/chat_anthropic.html" class="external-link">ellmer::chat_claude()</a></code>, which reads <code>ANTHROPIC_API_KEY</code>. Put the key in <code>~/.Renviron</code> (<code>usethis::edit_r_environ()</code>) and restart R.</p>
+<p>The package includes a demo: the web page of an ice cream shop with a flavor survey in a side panel. The survey asks about the favorites of the user, and a drawer beside the chat shows the answers so far. You choose the model with <code>chat</code>. The provider reads its own key variable, such as <code>ANTHROPIC_API_KEY</code>. Put the key in <code>~/.Renviron</code> (<code>usethis::edit_r_environ()</code>) and restart R.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">surveychat</span><span class="fu">::</span><span class="fu"><a href="reference/run_example.html">run_example</a></span><span class="op">(</span><span class="st">"icecream"</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu">surveychat</span><span class="fu">::</span><span class="fu"><a href="reference/run_example.html">run_example</a></span><span class="op">(</span><span class="st">"icecream"</span>, chat <span class="op">=</span> <span class="st">"anthropic/claude-haiku-4-5"</span><span class="op">)</span></span></code></pre></div>
+<p>Pass <code>"provider/model"</code> to use another model, such as <code>"openai/gpt-4.1-mini"</code>. To set the model once, put <code>SURVEYCHAT_CHAT</code> in <code>~/.Renviron</code>. The model must support structured output.</p>
 <p><img src="reference/figures/icecream.png" alt="The web page of an ice cream shop. A side panel on the right shows the survey chat. The bot, RoboScoop, greets the user, asks for their name with a card to stay anonymous, and then asks for their favorite flavor." width="100%"></p>
-<p>The source is in <a href="https://github.com/dylanpieper/surveychat/blob/main/inst/examples/icecream/app.R" class="external-link"><code>inst/examples/icecream/app.R</code></a>. Copy it to start your own survey.</p>
+<p>The source is in <a href="https://github.com/dylanpieper/surveychat/blob/main/inst/examples/icecream/app.R" class="external-link"><code>inst/examples/icecream/app.R</code></a>.</p>
 </div>
 <div class="section level2">
 <h2 id="key-features">Key Features<a class="anchor" aria-label="anchor" href="#key-features"></a>

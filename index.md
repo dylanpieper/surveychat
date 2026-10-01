@@ -16,16 +16,19 @@ pak::pak("dylanpieper/surveychat")
 
 The package includes a demo: the web page of an ice cream shop with a
 flavor survey in a side panel. The survey asks about the favorites of
-the user, and a drawer beside the chat shows the answers so far. The
-demo uses
-[`ellmer::chat_claude()`](https://ellmer.tidyverse.org/reference/chat_anthropic.html),
-which reads `ANTHROPIC_API_KEY`. Put the key in `~/.Renviron`
+the user, and a drawer beside the chat shows the answers so far. You
+choose the model with `chat`. The provider reads its own key variable,
+such as `ANTHROPIC_API_KEY`. Put the key in `~/.Renviron`
 (`usethis::edit_r_environ()`) and restart R.
 
 ``` r
 
-surveychat::run_example("icecream")
+surveychat::run_example("icecream", chat = "anthropic/claude-haiku-4-5")
 ```
+
+Pass `"provider/model"` to use another model, such as
+`"openai/gpt-4.1-mini"`. To set the model once, put `SURVEYCHAT_CHAT` in
+`~/.Renviron`. The model must support structured output.
 
 ![The web page of an ice cream shop. A side panel on the right shows the
 survey chat. The bot, RoboScoop, greets the user, asks for their name
@@ -34,7 +37,6 @@ flavor.](reference/figures/icecream.png)
 
 The source is in
 [`inst/examples/icecream/app.R`](https://github.com/dylanpieper/surveychat/blob/main/inst/examples/icecream/app.R).
-Copy it to start your own survey.
 
 ## Key Features
 
