@@ -208,7 +208,12 @@ probe_cache$entries <- list()
 # check then serves every session that opens in that time, and a short
 # outage locks only the sessions that open while it lasts. Each entry's age
 # starts when its check ends. `clock` gives the current time.
-chat_probe_cached <- function(chat, ttl = 30, ttl_error = 5, clock = Sys.time) {
+chat_probe_cached <- function(
+  chat,
+  ttl = 300,
+  ttl_error = 5,
+  clock = Sys.time
+) {
   now <- clock()
   fresh <- Filter(
     \(entry) {

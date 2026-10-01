@@ -252,9 +252,9 @@ test_that("chat_probe_cached() keeps a success longer than a failure", {
   down <- fake_chat(.probe = simpleError("HTTP 529"))
 
   expect_null(chat_probe_cached(ok, clock = at(0)))
-  expect_null(chat_probe_cached(ok, clock = at(20)))
+  expect_null(chat_probe_cached(ok, clock = at(290)))
   expect_equal(ok$log$probes, 1)
-  expect_null(chat_probe_cached(ok, clock = at(31)))
+  expect_null(chat_probe_cached(ok, clock = at(301)))
   expect_equal(ok$log$probes, 2)
 
   expect_s3_class(chat_probe_cached(down, clock = at(0)), "error")
