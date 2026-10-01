@@ -122,8 +122,10 @@ survey <- survey_spec(version = "1.0") |>
       "us to make Oreo custard next week, or is there another flavor you'd",
       "love to see?'",
       "If their favorite IS on our list, say we already make it and ask for",
-      "another flavor, e.g. 'Good news, we already make Strawberry! What",
+      "another flavor, e.g. 'Good news, we already make Sam's Strawberry! What",
       "other flavor would you love to see us make next week?'",
+      "Match by flavor, so 'strawberry' matches 'Sam's Strawberry', and use",
+      "the full name from our list in your reply.",
       "Do not list other flavors or examples, and do not ask how they serve",
       "it, about add-ons, or about flavor profiles.",
       "Return ONLY the question text."
