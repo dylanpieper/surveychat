@@ -28,7 +28,7 @@ The `"demographics"` example shows a form and the AI chat side by side. The user
 surveychat::run_example("demographics", chat = "anthropic/claude-haiku-4-5")
 ```
 
-<img src="man/figures/demographics.gif" alt="A survey card titled Tell us about you. On the left, a form asks How old are you? with a Next button. On the right, the AI chat asks the same question. The user types an answer in the chat, and the form dims while the chat is in use. Three icon buttons in the header show both views, the form alone, or the chat alone." width="100%"/>
+<img src="man/figures/demographics.gif" alt="A survey card titled Tell us about you. On the left, a form asks How old are you? with a Next button. On the right, the AI chat asks the same question. The user types an answer in the chat, and the form dims while the chat is in use. Three icon buttons in the header show both views, the form alone, or the chat alone." width="715"/>
 
 The source is in [`inst/examples/demographics/app.R`](https://github.com/dylanpieper/surveychat/blob/main/inst/examples/demographics/app.R).
 
