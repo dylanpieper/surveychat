@@ -328,3 +328,151 @@ test_that("chat_setup_error() warns when it cannot find the credentials", {
   expect_snapshot(result <- chat_setup_error(chat))
   expect_null(result)
 })
+
+test_that("a survey with the form starts on load, with no greeting", {
+  con <- local_sqlite()
+  local_sent_messages()
+
+  for (methods in list("form", c("chat", "form"))) {
+    local_probe_cache()
+    spec <- test_spec() |> set_config(methods = methods)
+    shiny::testServer(
+      survey_server,
+      args = list(survey = spec, chat = fake_chat(), con = con),
+      {
+        session$flushReact()
+        session$flushReact()
+        expect_true(output$view %in% c("form", "both"))
+        expect_match(as.character(output$form$html), "Name?", fixed = TRUE)
+      }
+    )
+  }
+  expect_equal(
+    DBI::dbGetQuery(con, "SELECT COUNT(*) AS n FROM sessions")$n,
+    2
+  )
+})
+
+test_that("a survey with both methods starts side by side", {
+  con <- local_sqlite()
+  local_sent_messages()
+  spec <- test_spec() |> set_config(methods = c("form", "chat"))
+
+  shiny::testServer(
+    survey_server,
+    args = list(survey = spec, chat = fake_chat(), con = con),
+    {
+      # The start after the first flush shows the question on the next one
+      session$flushReact()
+      session$flushReact()
+      expect_equal(output$view, "both")
+      expect_equal(
+        DBI::dbGetQuery(con, "SELECT COUNT(*) AS n FROM sessions")$n,
+        1
+      )
+      form <- as.character(output$form$html)
+      expect_match(form, 'id="proxy1-form_name"', fixed = TRUE)
+      expect_match(form, "Name?", fixed = TRUE)
+      expect_match(as.character(output$method$html), "proxy1-view_pick")
+
+      # A later greeting does not start a second session
+      session$setInputs(chat_greeting_requested = 1)
+      expect_equal(
+        DBI::dbGetQuery(con, "SELECT COUNT(*) AS n FROM sessions")$n,
+        1
+      )
+    }
+  )
+})
+
+test_that("the user can answer in the form, switch to the chat, and back", {
+  con <- local_sqlite()
+  sent <- local_sent_messages()
+  chat <- fake_chat(
+    list(name = "Ana", valid = TRUE),
+    list(content = "Ana is a nice name."),
+    list(flavor = "mint", valid = TRUE),
+    list(content = "Why mint, Ana?"),
+    list(why = "fresh", valid = FALSE),
+    list(why = "fresh", valid = TRUE)
+  )
+  spec <- test_spec() |> set_config(methods = c("form", "chat"))
+
+  shiny::testServer(
+    survey_server,
+    args = list(survey = spec, chat = chat, con = con),
+    {
+      session$flushReact()
+
+      # A type error shows under the field and records nothing
+      session$setInputs(form_next = 1)
+      expect_match(
+        as.character(output$form_error$html),
+        "answer this question"
+      )
+      expect_equal(
+        DBI::dbGetQuery(con, "SELECT COUNT(*) AS n FROM responses")$n,
+        0
+      )
+
+      session$setInputs(form_name = " Ana ", form_next = 2)
+      expect_null(output$form_error)
+      expect_equal(sent(user = TRUE), "Ana")
+      expect_match(sent()[length(sent())], "Ana, flavor?", fixed = TRUE)
+      expect_match(as.character(output$progress$html), "Question 2 of 3")
+      expect_match(as.character(output$form$html), "Ana, flavor?", fixed = TRUE)
+
+      session$setInputs(view_pick = "chat")
+      expect_equal(output$view, "chat")
+      session$setInputs(chat_user_input = "mint")
+      calls <- length(chat$log$prompts)
+
+      session$setInputs(view_pick = "form")
+      expect_equal(output$view, "form")
+      expect_match(
+        as.character(output$form$html),
+        "Why mint, Ana?",
+        fixed = TRUE
+      )
+      expect_length(chat$log$prompts, calls)
+
+      # Side by side shows both views; an unknown value changes nothing
+      session$setInputs(view_pick = "both")
+      expect_equal(output$view, "both")
+      session$setInputs(view_pick = "nope")
+      expect_equal(output$view, "both")
+
+      # Typed text that the LLM finds not valid shows the retry message
+      session$setInputs(form_why = "it is fresh", form_next = 3)
+      expect_match(as.character(output$form_error$html), "try again")
+      expect_match(as.character(output$form$html), "Why mint, Ana?")
+
+      session$setInputs(form_next = 4)
+      expect_match(as.character(output$form$html), "Survey complete")
+    }
+  )
+
+  responses <- DBI::dbGetQuery(
+    con,
+    "SELECT question_id, valid, method FROM responses ORDER BY response_id"
+  )
+  expect_equal(responses$question_id, c("name", "flavor", "why", "why"))
+  expect_equal(as.logical(responses$valid), c(TRUE, TRUE, FALSE, TRUE))
+  expect_equal(responses$method, c("form", "chat", "form", "form"))
+})
+
+test_that("a chat-only survey shows the chat and no method switch", {
+  con <- local_sqlite()
+  local_sent_messages()
+
+  shiny::testServer(
+    survey_server,
+    args = list(survey = test_spec(), chat = fake_chat(), con = con),
+    {
+      session$flushReact()
+      expect_equal(output$view, "chat")
+      expect_null(output$method)
+      expect_false(DBI::dbExistsTable(con, "sessions"))
+    }
+  )
+})

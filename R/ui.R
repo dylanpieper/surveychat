@@ -46,27 +46,193 @@ shiny-chat-container.sb-chat .shiny-chat-messages { padding-block-start: 0; }
 /* In a fill container, the chat must shrink so that its messages scroll and
    follow new content (posit-dev/shinychat#407) */
 shiny-chat-container.sb-chat[fill] { min-height: 0; }
+.sb-panel { min-height: 28rem; }
+/* The fill container is a column; side by side needs a row */
+.sb-views.html-fill-container { flex-direction: row; gap: 0; }
+.sb-views > .sb-view.html-fill-item { flex: 1 1 0; width: auto; }
+/* The chat sets an inline zero padding on its fill parents; only
+   !important wins over an inline style */
+.sb-views > .sb-view-chat { padding: .5rem .75rem .75rem !important; }
+/* Side by side: a light overlay dims the pane that the user is not using.
+   Hover picks the active pane, else focus. Clicks pass through. */
+.sb-views > .sb-view { position: relative; }
+.sb-views > .sb-view::after {
+  content: ''; position: absolute; inset: 0; z-index: 20;
+  pointer-events: none; opacity: 0; transition: opacity .2s ease;
+  background: var(--bs-card-bg, var(--bs-body-bg, #fff));
+}
+.sb-views:has(> .sb-view:hover) > .sb-view:not(:hover)::after,
+.sb-views:not(:has(> .sb-view:hover)):focus-within
+  > .sb-view:not(:focus-within)::after {
+  opacity: .55;
+}
+/* Side by side: a line between the form and the chat while both show */
+.sb-view-form:not([style*='display: none']) + .sb-view-chat {
+  border-left: 1px solid var(--bs-border-color-translucent, rgba(0,0,0,.1));
+}
+@media (max-width: 767.98px) {
+  .sb-views.html-fill-container { flex-direction: column; }
+  .sb-view-form:not([style*='display: none']) + .sb-view-chat {
+    border-left: 0;
+    border-top: 1px solid var(--bs-border-color-translucent, rgba(0,0,0,.1));
+  }
+}
+.sb-view-pick .btn {
+  color: inherit; border: 1px solid currentColor; opacity: .7;
+  --bs-btn-padding-x: .55rem;
+}
+.sb-view-pick .btn:hover { opacity: 1; }
+.sb-view-pick .btn-check:checked + .btn {
+  opacity: 1; color: inherit; border-color: currentColor;
+  background-color: color-mix(in srgb, currentColor 18%, transparent);
+}
+.sb-view-pick .btn-check:focus-visible + .btn {
+  outline: 2px solid currentColor; outline-offset: 2px;
+}
+.sb-form { position: relative; min-height: 12rem; overflow-y: auto; }
+.sb-form-intro { color: var(--bs-secondary-color, #6c757d); }
+.sb-form .shiny-input-container { width: 100%; }
+.sb-form .sb-overlay.sb-locked { position: static; }
 "
 
 #' @rdname survey_server
 #' @param title The title in the card header.
-#' @return `survey_ui()` returns a full-page Shiny UI with the chat, a progress
-#'   cue, and a footer that shows the closing message.
+#' @return `survey_ui()` returns a full-page Shiny UI with the
+#'   [survey_panel_ui()] card.
 #' @export
 survey_ui <- function(id, title = "Survey") {
-  ns <- shiny::NS(id)
   bslib::page_fillable(
     fillable_mobile = TRUE,
-    bslib::card(
-      bslib::card_header(
-        htmltools::div(
-          class = "d-flex justify-content-between align-items-center gap-3",
-          htmltools::span(title),
-          shiny::uiOutput(ns("progress"), inline = TRUE)
-        )
+    survey_panel_ui(id, title = title)
+  )
+}
+
+#' Put the survey card in any page
+#'
+#' `survey_panel_ui()` is a card with the title, the progress cue, the chat,
+#' and the form. With one method in `set_config(methods = )`, the card shows
+#' that view. With both, it starts side by side, and the header has three
+#' icon buttons: side by side, the form, and the AI chat. On a narrow screen,
+#' the side-by-side view puts the chat below the form. Pair it with
+#' [survey_server()] with the same `id`.
+#'
+#' The card fills its container. In a page that does not fill the window,
+#' put it in a [bslib::as_fill_carrier()] with a height.
+#'
+#' @inheritParams survey_chat_ui
+#' @param title The title in the card header, or `NULL` for no title. With
+#'   no title, the view buttons are on the left and the progress cue on the
+#'   right.
+#' @return A [bslib::card()].
+#' @seealso [survey_chat_ui()] for the chat alone. The `"demographics"`
+#'   example of [run_example()] puts the card in a narrow page.
+#' @export
+#' @examplesIf interactive() && rlang::is_installed("RSQLite")
+#' library(shiny)
+#' library(bslib)
+#'
+#' ui <- page_fixed(
+#'   as_fill_carrier(div(
+#'     style = "max-width: 640px; height: 80vh; margin: 2rem auto;",
+#'     survey_panel_ui("survey")
+#'   ))
+#' )
+survey_panel_ui <- function(id, title = NULL) {
+  ns <- shiny::NS(id)
+  if (!is.null(title)) {
+    check_string(title)
+  }
+  controls <- htmltools::tagList(
+    shiny::uiOutput(ns("method"), inline = TRUE),
+    shiny::uiOutput(ns("progress"), inline = TRUE)
+  )
+  bslib::card(
+    class = "sb-panel",
+    bslib::card_header(
+      htmltools::div(
+        class = "d-flex justify-content-between align-items-center gap-3 w-100",
+        if (is.null(title)) {
+          controls
+        } else {
+          htmltools::tagList(
+            htmltools::span(title),
+            htmltools::div(class = "d-flex align-items-center gap-3", controls)
+          )
+        }
+      )
+    ),
+    htmltools::bindFillRole(
+      htmltools::div(
+        class = "sb-views",
+        survey_view(
+          ns,
+          "form",
+          bslib::card_body(class = "sb-form", shiny::uiOutput(ns("form")))
+        ),
+        survey_view(ns, "chat", survey_chat_ui(id, progress = FALSE))
       ),
-      survey_chat_ui(id, progress = FALSE)
+      container = TRUE,
+      item = TRUE
     )
+  )
+}
+
+# A panel that shows while `output.view` is `view` or "both". Both panels
+# stay hidden until the server sends the view, so the wrong one never
+# flashes.
+survey_view <- function(ns, view, content) {
+  htmltools::bindFillRole(
+    htmltools::div(
+      class = paste0("sb-view sb-view-", view),
+      `data-display-if` = sprintf(
+        "output.view === '%s' || output.view === 'both'",
+        view
+      ),
+      `data-ns-prefix` = ns(""),
+      content
+    ),
+    container = TRUE,
+    item = TRUE
+  )
+}
+
+# The views that the header buttons choose, as `list(value, label, icon)`
+view_choices <- list(
+  list("both", "Side by side", "table-columns"),
+  list("form", "Form", "list-check"),
+  list("chat", "AI chat", "robot")
+)
+
+# Three icon buttons that choose the view. They are one Shiny radio group,
+# so the browser keeps the active button and the server reads `input$<id>`.
+view_picker <- function(id, selected) {
+  buttons <- lapply(view_choices, \(choice) {
+    button_id <- paste0(id, "-", choice[[1]])
+    htmltools::tagList(
+      htmltools::tags$input(
+        type = "radio",
+        class = "btn-check",
+        name = id,
+        id = button_id,
+        value = choice[[1]],
+        autocomplete = "off",
+        checked = if (choice[[1]] == selected) NA
+      ),
+      htmltools::tags$label(
+        class = "btn",
+        `for` = button_id,
+        title = choice[[2]],
+        `aria-label` = choice[[2]],
+        shiny::icon(choice[[3]])
+      )
+    )
+  })
+  htmltools::div(
+    id = id,
+    class = "shiny-input-radiogroup btn-group btn-group-sm sb-view-pick",
+    role = "radiogroup",
+    `aria-label` = "View",
+    buttons
   )
 }
 
@@ -220,18 +386,40 @@ survey_complete <- function(
   status = c("complete", "locked")
 ) {
   status <- rlang::arg_match(status)
-  icon <- if (status == "complete") "\u2713" else "\u2715"
-  class <- if (status == "complete") "sb-complete" else "sb-overlay sb-locked"
   htmltools::tagList(
     htmltools::tags$style(htmltools::HTML(sprintf(
       "#%s shiny-chat-input { display: none; }",
       chat_id
     ))),
-    htmltools::div(
-      class = class,
-      role = "status",
-      htmltools::span(class = "sb-complete-icon", icon),
-      htmltools::span(message)
+    survey_status(message, status)
+  )
+}
+
+# The closing or locked message with its icon, for the chat footer and the
+# form
+survey_status <- function(message, status = c("complete", "locked")) {
+  status <- rlang::arg_match(status)
+  icon <- if (status == "complete") "\u2713" else "\u2715"
+  class <- if (status == "complete") "sb-complete" else "sb-overlay sb-locked"
+  htmltools::div(
+    class = class,
+    role = "status",
+    htmltools::span(class = "sb-complete-icon", icon),
+    htmltools::span(message)
+  )
+}
+
+# One step of the form: the intro, the input with the question as its
+# label, a place for the error, and the Next button. The button is busy
+# while the LLM checks typed text, so it cannot submit twice.
+form_step <- function(ns, prompt, question) {
+  htmltools::tagList(
+    form_input(ns, prompt, question),
+    shiny::uiOutput(ns("form_error")),
+    bslib::input_task_button(
+      ns("form_next"),
+      "Next",
+      label_busy = "Checking..."
     )
   )
 }
