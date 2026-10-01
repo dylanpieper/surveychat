@@ -16,7 +16,7 @@ for (backend in names(backends)) {
     expect_gt(second, first)
 
     save_response(con, first, "name", 1, "Name?", "I'm Ana", "Ana", TRUE)
-    save_response(con, first, "flavor", 2, NULL, "hmm")
+    save_response(con, first, "flavor", 2, NULL, "hmm", method = "form")
     increment_retry(con, first)
     increment_retry(con, first)
     complete_session(con, first, 12)
@@ -37,8 +37,17 @@ for (backend in names(backends)) {
     expect_equal(responses$answer_extracted, c("Ana", NA))
     expect_equal(responses$question_text, c("Name?", NA))
     expect_equal(as.logical(responses$valid), c(TRUE, NA))
+    expect_equal(responses$method, c(NA, "form"))
   })
 }
+
+test_that("init_database() asks to add the method column to an old table", {
+  con <- local_sqlite()
+  init_database(con, quiet = TRUE)
+  DBI::dbExecute(con, "ALTER TABLE responses DROP COLUMN method")
+
+  expect_error(init_database(con), "Add .*method")
+})
 
 test_that("dialect_for() falls back to ANSI for an unknown driver", {
   unknown <- structure(list(), class = "UnknownConnection")
