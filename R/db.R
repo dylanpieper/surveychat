@@ -242,6 +242,7 @@ init_database <- function(con, quiet = FALSE) {
       "responded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP",
       "retry_attempt INTEGER DEFAULT 0",
       "duration_seconds INTEGER",
+      "method TEXT",
       if (d$foreign_keys) {
         paste0(
           "FOREIGN KEY (session_id) REFERENCES sessions(session_id)",
@@ -308,7 +309,8 @@ written_columns <- list(
     "answer_extracted",
     "valid",
     "retry_attempt",
-    "duration_seconds"
+    "duration_seconds",
+    "method"
   )
 )
 
@@ -349,8 +351,18 @@ save_response <- function(
   answer_extracted = NULL,
   valid = NULL,
   retry_attempt = 0,
-  duration_seconds = NULL
+  duration_seconds = NULL,
+  method = NULL
 ) {
+  if (!is.null(method) && !rlang::is_string(method, c("chat", "form"))) {
+    cli::cli_abort(
+      if (rlang::is_string(method)) {
+        "{.arg method} must be {.val chat} or {.val form}, not {.val {method}}."
+      } else {
+        "{.arg method} must be {.val chat} or {.val form}, not {.obj_type_friendly {method}}."
+      }
+    )
+  }
   con <- checkout(con)
   insert_row(
     con,
@@ -364,7 +376,8 @@ save_response <- function(
       answer_extracted = as.character(answer_extracted),
       valid = as.logical(valid),
       retry_attempt = as.integer(retry_attempt),
-      duration_seconds = as.integer(duration_seconds)
+      duration_seconds = as.integer(duration_seconds),
+      method = as.character(method)
     )
   )
 }

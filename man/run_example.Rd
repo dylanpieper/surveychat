@@ -13,7 +13,7 @@ names.}
 \item{chat}{The chat that asks the questions. One of three forms:
 \itemize{
 \item \code{NULL} (default): the value of the environment variable
-\code{SURVEYCHAT_CHAT}. It is an error if the variable is not set.
+\code{SURVEYCHAT_MODEL}. It is an error if the variable is not set.
 \item A string, \code{"provider/model"} or \code{"provider"}, for \code{\link[ellmer:chat-any]{ellmer::chat()}}.
 The provider reads its own key variable, such as \code{OPENAI_API_KEY}.
 \item An ellmer chat object, such as \code{\link[ellmer:chat_openai]{ellmer::chat_openai()}}.
@@ -26,11 +26,19 @@ The names of the examples if \code{name} is \code{NULL}. Otherwise, no
 value; the app runs until you stop it.
 }
 \description{
-Starts an example app that ships with the package. The \code{"icecream"} example
-is the web page of an ice cream shop with a flavor survey in a side panel.
-It stores the answers with RSQLite. You choose the model with \code{chat}, or
-with the environment variable \code{SURVEYCHAT_CHAT}. The model must support
-structured output.
+Starts an example app that ships with the package and stores the answers
+with RSQLite. You choose the model with \code{chat}, or with the environment
+variable \code{SURVEYCHAT_MODEL}. The model must support structured output.
+}
+\details{
+The examples are:
+\itemize{
+\item \code{"icecream"}: the web page of an ice cream shop with a flavor survey in
+a side panel.
+\item \code{"demographics"}: a plain page with six questions about the user. It
+starts with the form and the AI chat side by side, and the user can
+show one of them alone.
+}
 }
 \examples{
 run_example(NULL)
@@ -38,5 +46,6 @@ run_example(NULL)
 run_example("icecream", chat = "anthropic/claude-haiku-4-5")
 run_example("icecream", chat = "openai/gpt-4.1-mini")
 run_example("icecream", chat = "ollama/llama3.2")
+run_example("demographics", chat = "anthropic/claude-haiku-4-5")
 \dontshow{\}) # examplesIf}
 }

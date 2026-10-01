@@ -17,7 +17,7 @@ test_that("survey_ui() namespaces its ids", {
   expect_match(html, 'id="survey-progress"', fixed = TRUE)
   expect_match(html, 'id="survey-footer"', fixed = TRUE)
   # The progress cue is in the header only
-  expect_length(gregexpr('id="survey-progress"', html)[[1]], 1)
+  expect_equal(count_matches('id="survey-progress"', html), 1)
 })
 
 test_that("survey_chat_ui() makes a chat with a footer and an optional drawer", {
@@ -69,7 +69,7 @@ test_that("two survey chats on one page add the styles once", {
     survey_chat_ui("a"),
     survey_chat_ui("b")
   ))$head
-  expect_length(gregexpr(".sb-progress {", head, fixed = TRUE)[[1]], 1)
+  expect_equal(count_matches(".sb-progress {", head, fixed = TRUE), 1)
 })
 
 test_that("survey_chat_ui() checks its arguments", {
@@ -129,7 +129,7 @@ test_that("bot_response() adds the later parts whole", {
 })
 
 test_that("run_example() lists the examples and rejects an unknown name", {
-  expect_true("icecream" %in% run_example(NULL))
+  expect_contains(run_example(NULL), c("demographics", "icecream"))
   expect_snapshot(run_example("nope"), error = TRUE)
 })
 
@@ -143,7 +143,7 @@ test_that("example_chat() resolves the env var and a string", {
     .package = "ellmer"
   )
 
-  withr::local_envvar(SURVEYCHAT_CHAT = "ollama/llama3.2")
+  withr::local_envvar(SURVEYCHAT_MODEL = "ollama/llama3.2")
   example_chat(NULL)
   expect_equal(seen$name, "ollama/llama3.2")
   expect_equal(seen$args$echo, "none")
@@ -156,7 +156,7 @@ test_that("example_chat() resolves the env var and a string", {
 test_that("example_chat() passes a Chat through and rejects other values", {
   chat <- fake_chat()
   expect_identical(example_chat(chat), chat)
-  withr::local_envvar(SURVEYCHAT_CHAT = NA)
+  withr::local_envvar(SURVEYCHAT_MODEL = NA)
   expect_snapshot(example_chat(NULL), error = TRUE)
   expect_snapshot(example_chat(1), error = TRUE)
   expect_error(example_chat(""), "must be a string")
@@ -205,4 +205,51 @@ test_that("run_example() hands the chat to the app and resets the option", {
 
   expect_identical(inside, chat)
   expect_equal(getOption("surveychat.example_chat"), "old")
+})
+
+test_that("survey_panel_ui() holds the chat and the form behind the view", {
+  html <- as.character(survey_panel_ui("survey", title = "About you"))
+
+  expect_match(html, "About you", fixed = TRUE)
+  expect_match(html, 'id="survey-method"', fixed = TRUE)
+  expect_match(html, 'id="survey-form"', fixed = TRUE)
+  expect_match(html, 'id="survey-chat"', fixed = TRUE)
+  expect_match(html, "output.view === &#39;both&#39;", fixed = TRUE)
+  expect_match(html, "output.view === &#39;form&#39;", fixed = TRUE)
+  expect_equal(count_matches('data-ns-prefix="survey-"', html), 2)
+  expect_error(survey_panel_ui("survey", title = 1), "title")
+})
+
+test_that("the view picker is one radio group of three icon buttons", {
+  html <- as.character(view_picker("survey-view_pick", "form"))
+
+  expect_match(html, 'id="survey-view_pick"', fixed = TRUE)
+  expect_match(html, "shiny-input-radiogroup", fixed = TRUE)
+  expect_equal(count_matches('name="survey-view_pick"', html), 3)
+  expect_match(html, 'value="form" autocomplete="off" checked', fixed = TRUE)
+  expect_equal(count_matches("checked", html), 1)
+  for (label in c("Form", "AI chat", "Side by side")) {
+    expect_match(html, sprintf('aria-label="%s"', label), fixed = TRUE)
+  }
+})
+
+test_that("survey_panel_ui() puts the controls in the header with no title", {
+  untitled <- as.character(survey_panel_ui("x"))
+  titled <- as.character(survey_panel_ui("x", title = "About you"))
+
+  expect_no_match(untitled, "About you", fixed = TRUE)
+  expect_match(titled, "<span>About you</span>", fixed = TRUE)
+  for (html in c(untitled, titled)) {
+    expect_match(html, 'id="x-method"', fixed = TRUE)
+    expect_match(html, 'id="x-progress"', fixed = TRUE)
+  }
+})
+
+test_that("survey_status() puts rendered markdown in a block", {
+  plain <- as.character(survey_status("Done"))
+  rendered <- as.character(survey_status(shiny::markdown("Done\n\nBye")))
+
+  expect_match(plain, "<span>Done</span>", fixed = TRUE)
+  expect_match(rendered, '<div class="sb-status-text">', fixed = TRUE)
+  expect_equal(count_matches("<p>", rendered), 2)
 })

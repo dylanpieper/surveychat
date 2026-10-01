@@ -11,7 +11,8 @@ set_messages(
   completion = NULL,
   closed = NULL,
   locked = NULL,
-  suggested = NULL
+  suggested = NULL,
+  skipped = NULL
 )
 }
 \arguments{
@@ -19,7 +20,9 @@ set_messages(
 
 \item{welcome}{The first message of the survey.}
 
-\item{retry}{The message when an answer is not valid.}
+\item{retry}{The message when an answer is not valid and the LLM gives no
+hint. The extraction asks the LLM for a short hint that tells the user
+what to change, and the survey shows the hint if there is one.}
 
 \item{completion}{The message after the last answer. It can use \code{{id}}
 placeholders for any answer.}
@@ -31,6 +34,9 @@ the API key is missing, or the model does not answer when the chat opens.}
 
 \item{suggested}{The note before choices that the LLM writes. See the
 \code{choices} argument of \code{\link[=add_question]{add_question()}}.}
+
+\item{skipped}{The text that the chat transcript shows for an optional
+question that the user skipped in the form.}
 }
 \value{
 \code{spec} with the new messages.

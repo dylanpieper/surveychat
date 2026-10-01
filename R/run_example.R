@@ -1,16 +1,23 @@
 #' Run an example survey
 #'
-#' Starts an example app that ships with the package. The `"icecream"` example
-#' is the web page of an ice cream shop with a flavor survey in a side panel.
-#' It stores the answers with RSQLite. You choose the model with `chat`, or
-#' with the environment variable `SURVEYCHAT_CHAT`. The model must support
-#' structured output.
+#' Starts an example app that ships with the package and stores the answers
+#' with RSQLite. You choose the model with `chat`, or with the environment
+#' variable `SURVEYCHAT_MODEL`. The model must support structured output.
+#'
+#' @details
+#' The examples are:
+#'
+#' * `"icecream"`: the web page of an ice cream shop with a flavor survey in
+#'   a side panel.
+#' * `"demographics"`: a plain page with six questions about the user. It
+#'   starts with the form and the AI chat side by side, and the user can
+#'   show one of them alone.
 #'
 #' @param name The name of the example. Call `run_example(NULL)` to list the
 #'   names.
 #' @param chat The chat that asks the questions. One of three forms:
 #'   * `NULL` (default): the value of the environment variable
-#'     `SURVEYCHAT_CHAT`. It is an error if the variable is not set.
+#'     `SURVEYCHAT_MODEL`. It is an error if the variable is not set.
 #'   * A string, `"provider/model"` or `"provider"`, for [ellmer::chat()].
 #'     The provider reads its own key variable, such as `OPENAI_API_KEY`.
 #'   * An ellmer chat object, such as [ellmer::chat_openai()].
@@ -24,6 +31,7 @@
 #' run_example("icecream", chat = "anthropic/claude-haiku-4-5")
 #' run_example("icecream", chat = "openai/gpt-4.1-mini")
 #' run_example("icecream", chat = "ollama/llama3.2")
+#' run_example("demographics", chat = "anthropic/claude-haiku-4-5")
 run_example <- function(name = "icecream", chat = NULL, ...) {
   examples <- list.files(system.file("examples", package = "surveychat"))
   if (is.null(name)) {
@@ -56,18 +64,18 @@ run_example <- function(name = "icecream", chat = NULL, ...) {
   )
 }
 
-# Returns an ellmer chat. `NULL` reads SURVEYCHAT_CHAT; it is an error if that
+# Returns an ellmer chat. `NULL` reads SURVEYCHAT_MODEL; it is an error if that
 # is not set. A string goes to ellmer::chat(); a bad provider keeps the ellmer
 # error as the parent. A chat object passes through. Any other value is an
 # error.
 example_chat <- function(chat, call = rlang::caller_env()) {
   if (is.null(chat)) {
-    chat <- Sys.getenv("SURVEYCHAT_CHAT")
+    chat <- Sys.getenv("SURVEYCHAT_MODEL")
     if (!nzchar(chat)) {
       cli::cli_abort(
         c(
           "No chat is set for the example.",
-          "i" = "Set {.arg chat}, such as {.code chat = \"openai/gpt-4.1-mini\"}, or set the environment variable {.envvar SURVEYCHAT_CHAT}."
+          "i" = "Set {.arg chat}, such as {.code chat = \"openai/gpt-4.1-mini\"}, or set the environment variable {.envvar SURVEYCHAT_MODEL}."
         ),
         call = call
       )

@@ -57,6 +57,31 @@ check_bool <- function(
   invisible(x)
 }
 
+# One or two answer methods, each one time; the first is the view at the start
+check_methods <- function(
+  x,
+  arg = rlang::caller_arg(x),
+  call = rlang::caller_env()
+) {
+  if (!is.character(x) || length(x) == 0 || length(x) > 2 || anyNA(x)) {
+    cli::cli_abort(
+      "{.arg {arg}} must be {.val chat}, {.val form}, or both, not {.obj_type_friendly {x}}.",
+      call = call
+    )
+  }
+  rlang::arg_match(
+    x,
+    c("chat", "form"),
+    multiple = TRUE,
+    error_arg = arg,
+    error_call = call
+  )
+  if (anyDuplicated(x)) {
+    cli::cli_abort("{.arg {arg}} must name each method only once.", call = call)
+  }
+  invisible(x)
+}
+
 # `FALSE` or a shinychat::chat_drawer() configuration
 check_drawer_config <- function(
   x,

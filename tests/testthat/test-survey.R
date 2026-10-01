@@ -101,7 +101,10 @@ test_that("a reply that answers a later question skips it and records it", {
   expect_equal(engine$progress()$current, 3)
 
   # The adaptive question is not offered as an early field
-  expect_named(chat$log$types[[1]]@properties, c("name", "valid", "flavor"))
+  expect_named(
+    chat$log$types[[1]]@properties,
+    c("name", "valid", "retry_hint", "flavor")
+  )
   expect_false(chat$log$types[[1]]@properties$flavor@required)
   expect_match(chat$log$prompts[1], "later questions", fixed = TRUE)
 
@@ -171,7 +174,7 @@ test_that("skip_answered = FALSE asks every question", {
 
   message <- engine$process_input("Ana, mint")$message
   expect_match(message[1], "Ana, flavor?", fixed = TRUE)
-  expect_named(chat$log$types[[1]]@properties, c("name", "valid"))
+  expect_named(chat$log$types[[1]]@properties, c("name", "valid", "retry_hint"))
   expect_no_match(chat$log$prompts[1], "later questions", fixed = TRUE)
   expect_equal(engine$answers_so_far(), list(name = "Ana"))
 })
@@ -416,4 +419,276 @@ test_that("a failed retry count still asks again and counts the retry", {
   expect_equal(retry$message, test_spec()$messages$retry)
   expect_match(moved_on, "flavor")
   expect_equal(responses_of(con)$retry_attempt, c(0, 1))
+})
+
+responses_of_valid <- function(con) {
+  DBI::dbGetQuery(con, "SELECT valid FROM responses ORDER BY response_id")$valid
+}
+
+test_that("a session can mix form and chat answers and records each method", {
+  con <- local_sqlite()
+  chat <- fake_chat(
+    list(name = "Ana", valid = TRUE),
+    list(content = "Ana is a nice name."),
+    list(flavor = "mint", valid = TRUE),
+    list(content = "Why mint, Ana?"),
+    list(why = "fresh taste", valid = TRUE)
+  )
+  engine <- SurveySession$new(test_spec(), chat, con)
+  engine$start()
+  engine$first_question()
+
+  expect_equal(
+    engine$submit_form("  ana ")$message,
+    "Hi Ana! Ana is a nice name.\n\nAna, flavor?"
+  )
+  expect_equal(engine$process_input("mint")$message, "Why mint, Ana?")
+  expect_equal(
+    engine$submit_form("it is fresh"),
+    list(message = "Bye Ana", complete = TRUE)
+  )
+
+  # Typed form text goes through the same extraction as the chat
+  expect_match(chat$log$prompts[1], "Question: Name?\nReply: ana", fixed = TRUE)
+  expect_named(chat$log$types[[1]]@properties, c("name", "valid", "retry_hint"))
+
+  responses <- DBI::dbGetQuery(
+    con,
+    "SELECT question_id, question_text, answer_raw, answer_extracted, valid,
+       method FROM responses ORDER BY response_id"
+  )
+  expect_equal(responses$question_id, c("name", "flavor", "why"))
+  expect_equal(responses$method, c("form", "chat", "form"))
+  expect_equal(
+    responses$question_text,
+    c("Name?", "Ana, flavor?", "Why mint, Ana?")
+  )
+  expect_equal(responses$answer_raw, c("ana", "mint", "it is fresh"))
+  expect_equal(responses$answer_extracted, c("Ana", "mint", "fresh taste"))
+  expect_equal(as.logical(responses$valid), c(TRUE, TRUE, TRUE))
+  expect_equal(
+    engine$answers_so_far(),
+    list(name = "Ana", flavor = "mint", why = "fresh taste")
+  )
+})
+
+test_that("the current prompt is generated once for both views", {
+  chat <- fake_chat(
+    list(name = "Ana", valid = TRUE),
+    list(content = "x"),
+    list(flavor = "mint", valid = TRUE),
+    list(content = "Why mint, Ana?")
+  )
+  engine <- SurveySession$new(test_spec(), chat, local_sqlite())
+  engine$start()
+  expect_equal(engine$first_question(), "Name?")
+  expect_equal(engine$current_prompt()$text, "Name?")
+
+  engine$submit_form("Ana")
+  engine$process_input("mint")
+  calls <- length(chat$log$prompts)
+  prompt <- engine$current_prompt()
+
+  expect_equal(prompt$id, "why")
+  expect_equal(prompt$text, "Why mint, Ana?")
+  expect_identical(engine$current_prompt(), prompt)
+  expect_length(chat$log$prompts, calls)
+})
+
+test_that("a form value with the wrong type records nothing", {
+  con <- local_sqlite()
+  engine <- SurveySession$new(test_spec(), fake_chat(), con)
+  engine$start()
+  engine$first_question()
+
+  result <- engine$submit_form("  ")
+  expect_null(result$message)
+  expect_false(result$complete)
+  expect_match(result$error, "answer this question")
+  expect_equal(nrow(responses_of(con)), 0)
+  expect_equal(engine$current_prompt()$id, "name")
+  expect_equal(DBI::dbGetQuery(con, "SELECT retry_count FROM sessions")[[1]], 0)
+})
+
+test_that("typed form text that is not valid is asked again up to `tries`", {
+  con <- local_sqlite()
+  chat <- fake_chat(
+    list(name = "??", valid = FALSE),
+    list(name = "??", valid = FALSE),
+    list(content = "x")
+  )
+  engine <- SurveySession$new(test_spec(), chat, con)
+  engine$start()
+  engine$first_question()
+
+  retry <- engine$submit_form("asdf")
+  expect_equal(
+    retry,
+    list(message = NULL, complete = FALSE, error = test_spec()$messages$retry)
+  )
+  expect_equal(engine$current_prompt()$id, "name")
+
+  # After the last retry, the answer is kept and the survey moves on
+  kept <- engine$submit_form("asdf")
+  expect_match(kept$message, "flavor")
+
+  responses <- DBI::dbGetQuery(
+    con,
+    "SELECT retry_attempt, valid, method FROM responses ORDER BY response_id"
+  )
+  expect_equal(responses$retry_attempt, c(0, 1))
+  expect_equal(as.logical(responses$valid), c(FALSE, FALSE))
+  expect_equal(responses$method, c("form", "form"))
+  expect_equal(DBI::dbGetQuery(con, "SELECT retry_count FROM sessions")[[1]], 1)
+})
+
+test_that("the chat and the form share one retry count", {
+  con <- local_sqlite()
+  chat <- fake_chat(
+    list(name = "??", valid = FALSE),
+    list(name = "Ana", valid = TRUE),
+    list(content = "x")
+  )
+  spec <- test_spec() |> set_config(tries = 2)
+  engine <- SurveySession$new(spec, chat, con)
+  engine$start()
+  engine$first_question()
+
+  engine$process_input("?")
+  engine$submit_form("Ana")
+
+  responses <- DBI::dbGetQuery(
+    con,
+    "SELECT retry_attempt, valid, method FROM responses ORDER BY response_id"
+  )
+  expect_equal(responses$retry_attempt, c(0, 1))
+  expect_equal(as.logical(responses$valid), c(FALSE, TRUE))
+  expect_equal(responses$method, c("chat", "form"))
+})
+
+test_that("a fixed choice in the form needs no LLM call", {
+  con <- local_sqlite()
+  spec <- choice_spec(answer = ellmer::type_enum(c("cone", "cup"), "Serve"))
+  chat <- fake_chat(list(name = "Ana", valid = TRUE))
+  engine <- SurveySession$new(spec, chat, con)
+  engine$start()
+  engine$first_question()
+  engine$process_input("Ana")
+  calls <- length(chat$log$prompts)
+
+  expect_true(engine$submit_form("cup")$complete)
+  expect_length(chat$log$prompts, calls)
+  expect_equal(as.logical(responses_of_valid(con)), c(TRUE, TRUE))
+})
+
+test_that("a picked card needs no check, but typed text does", {
+  prompt <- list(generated = "Waffle", fixed = "Plain")
+  string <- list(answer = ellmer::type_string(), own_valid = FALSE)
+  own <- list(answer = ellmer::type_enum(c("a", "b")), own_valid = TRUE)
+  enum <- list(answer = ellmer::type_enum(c("a", "b")), own_valid = FALSE)
+  integer <- list(answer = ellmer::type_integer(), own_valid = FALSE)
+
+  expect_false(form_needs_check(string, prompt, "Plain"))
+  expect_false(form_needs_check(string, prompt, "Waffle"))
+  expect_true(form_needs_check(string, prompt, "Rocky road"))
+  expect_true(form_needs_check(string, list(), "Rocky road"))
+  expect_false(form_needs_check(string, list(), ""))
+  expect_false(form_needs_check(enum, list(), "a"))
+  expect_false(form_needs_check(integer, list(), "34"))
+  expect_true(form_needs_check(own, list(), "a"))
+})
+
+test_that("a question with its own rule checks a form number with the LLM", {
+  con <- local_sqlite()
+  spec <- survey_spec() |>
+    add_question(
+      "age",
+      text = "Age?",
+      answer = ellmer::type_integer("Age"),
+      valid = "a plausible age from 13 to 120"
+    )
+  chat <- fake_chat(list(age = 400L, valid = FALSE))
+  engine <- SurveySession$new(spec, chat, con)
+  engine$start()
+  engine$first_question()
+
+  expect_equal(engine$submit_form(400)$error, spec$messages$retry)
+  expect_match(chat$log$prompts[1], "Reply: 400", fixed = TRUE)
+})
+
+test_that("a failed LLM check keeps the form answer with no valid flag", {
+  con <- local_sqlite()
+  chat <- fake_chat(simpleError("API down"), list(content = "x"))
+  engine <- SurveySession$new(test_spec(), chat, con)
+  engine$start()
+  engine$first_question()
+
+  expect_warning(
+    message <- engine$submit_form("Ana")$message,
+    "keeps it"
+  )
+  expect_match(message, "Ana, flavor?", fixed = TRUE)
+  expect_true(is.na(responses_of_valid(con)))
+  expect_equal(engine$answers_so_far(), list(name = "Ana"))
+})
+
+test_that("the form gives no answer after the survey is complete", {
+  chat <- fake_chat(
+    list(name = "Ana", valid = TRUE),
+    list(content = "x"),
+    list(flavor = "mint", valid = TRUE),
+    list(content = "y"),
+    list(why = "fresh", valid = TRUE)
+  )
+  engine <- SurveySession$new(test_spec(), chat, local_sqlite())
+  engine$start()
+  engine$first_question()
+  engine$submit_form("Ana")
+  engine$submit_form("mint")
+  engine$submit_form("fresh")
+
+  expect_null(engine$current_prompt())
+  expect_equal(
+    engine$submit_form("again"),
+    list(message = NULL, complete = TRUE)
+  )
+})
+
+test_that("a retry shows the LLM hint, or the retry message without one", {
+  hint <- "That doesn't look like a name. Could you tell me your first name?"
+  chat <- fake_chat(
+    list(name = "??", valid = FALSE, retry_hint = paste0(" ", hint, " ")),
+    list(name = "??", valid = FALSE, retry_hint = "  "),
+    list(name = "??", valid = FALSE, retry_hint = NA_character_)
+  )
+  spec <- test_spec() |> set_config(tries = 3)
+  engine <- SurveySession$new(spec, chat, local_sqlite())
+  engine$start()
+  engine$first_question()
+
+  expect_equal(engine$process_input("?")$message, hint)
+  expect_equal(engine$process_input("?")$message, spec$messages$retry)
+  expect_equal(engine$submit_form("asdf")$error, spec$messages$retry)
+  expect_match(
+    chat$log$types[[1]]@properties$retry_hint@description,
+    "valid is FALSE"
+  )
+  expect_false(chat$log$types[[1]]@properties$retry_hint@required)
+})
+
+test_that("a form retry shows the LLM hint under the field", {
+  hint <- "Please enter your age in years."
+  chat <- fake_chat(list(age = 400L, valid = FALSE, retry_hint = hint))
+  spec <- survey_spec() |>
+    add_question(
+      "age",
+      text = "Age?",
+      answer = ellmer::type_integer("Age"),
+      valid = "a plausible age from 13 to 120"
+    )
+  engine <- SurveySession$new(spec, chat, local_sqlite())
+  engine$start()
+  engine$first_question()
+
+  expect_equal(engine$submit_form(400)$error, hint)
 })

@@ -15,7 +15,7 @@ test_that("add_question() builds a schema with the answer and the valid flag", {
   question <- test_spec()$questions[[1]]
 
   expect_s7_class(question$schema, ellmer::TypeObject)
-  expect_named(question$schema@properties, c("name", "valid"))
+  expect_named(question$schema@properties, c("name", "valid", "retry_hint"))
   expect_equal(question$valid, default_config()$valid)
 })
 
@@ -116,7 +116,7 @@ test_that("extraction_schema() adds optional early fields with their question", 
   expect_identical(extraction_schema(first, list(), list()), first$schema)
 
   schema <- extraction_schema(first, spec$questions[2], list())
-  expect_named(schema@properties, c("name", "valid", "flavor"))
+  expect_named(schema@properties, c("name", "valid", "retry_hint", "flavor"))
   flavor <- schema@properties$flavor
   expect_false(flavor@required)
   # The current question's placeholder is named plainly, not as a bare id
@@ -255,6 +255,34 @@ test_that("set_config() turns the model check on by default and off on request",
   expect_error(set_config(survey_spec(), check_model = "no"), "check_model")
 })
 
+test_that("set_config() sets the answer methods, with the chat by default", {
+  expect_equal(survey_spec()$config$methods, "chat")
+  expect_equal(
+    set_config(survey_spec(), methods = c("form", "chat"))$config$methods,
+    c("form", "chat")
+  )
+  expect_equal(
+    set_config(survey_spec(), methods = "form")$config$methods,
+    "form"
+  )
+})
+
+test_that("set_config() rejects bad answer methods", {
+  expect_error(set_config(survey_spec(), methods = "web"), "methods")
+  expect_error(set_config(survey_spec(), methods = c("chat", "chat")), "once")
+  expect_error(set_config(survey_spec(), methods = character()), "methods")
+  expect_error(set_config(survey_spec(), methods = 1), "methods")
+  expect_error(set_config(survey_spec(), methods = NA_character_), "methods")
+})
+
+test_that("print() shows the answer methods when there is a form", {
+  expect_output(print(test_spec()), "^[^\n]*questions\n")
+  expect_output(
+    print(set_config(test_spec(), methods = c("form", "chat"))),
+    "methods form, chat"
+  )
+})
+
 test_that("set_messages() and set_config() reject bad values", {
   expect_snapshot(error = TRUE, {
     set_messages(survey_spec(), welcome = 1)
@@ -293,4 +321,11 @@ test_that("print() lists each question with its tags", {
         choices = prompt_llm("Toppings for {flavor}")
       )
   ))
+})
+
+test_that("add_question() reserves the retry_hint id", {
+  expect_error(
+    add_question(survey_spec(), "retry_hint", "Q?", ellmer::type_string()),
+    "package uses that name"
+  )
 })

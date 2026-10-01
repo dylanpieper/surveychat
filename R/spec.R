@@ -185,7 +185,9 @@ prompt_llm <- function(prompt, format = NULL) {
 #'
 #' @param spec A survey spec from [survey_spec()].
 #' @param welcome The first message of the survey.
-#' @param retry The message when an answer is not valid.
+#' @param retry The message when an answer is not valid and the LLM gives no
+#'   hint. The extraction asks the LLM for a short hint that tells the user
+#'   what to change, and the survey shows the hint if there is one.
 #' @param completion The message after the last answer. It can use `{id}`
 #'   placeholders for any answer.
 #' @param closed The text that replaces the chat input after the survey.
@@ -193,6 +195,8 @@ prompt_llm <- function(prompt, format = NULL) {
 #'   the API key is missing, or the model does not answer when the chat opens.
 #' @param suggested The note before choices that the LLM writes. See the
 #'   `choices` argument of [add_question()].
+#' @param skipped The text that the chat transcript shows for an optional
+#'   question that the user skipped in the form.
 #' @return `spec` with the new messages.
 #' @export
 #' @examples
@@ -205,7 +209,8 @@ set_messages <- function(
   completion = NULL,
   closed = NULL,
   locked = NULL,
-  suggested = NULL
+  suggested = NULL,
+  skipped = NULL
 ) {
   check_spec(spec)
   given <- compact(list(
@@ -214,7 +219,8 @@ set_messages <- function(
     completion = completion,
     closed = closed,
     locked = locked,
-    suggested = suggested
+    suggested = suggested,
+    skipped = skipped
   ))
   for (name in names(given)) {
     check_string(given[[name]], arg = name)
@@ -249,6 +255,14 @@ set_messages <- function(
 #'   session that opens in the next 5 minutes, so most sessions add no
 #'   request. A failure serves the sessions of the next 5 seconds. If `FALSE`,
 #'   the survey starts at once with no extra request.
+#' @param methods How the user answers: `"chat"`, `"form"`, or both. The
+#'   form shows one question at each step with a Shiny input. A fixed choice
+#'   needs no LLM call. Typed text, and any answer to a question with its own
+#'   `valid` rule, gets the same LLM check as the chat. With both, the survey
+#'   starts with the form and the AI chat side by side, and three icon
+#'   buttons in the header change the view at any question. The database
+#'   records the `method` of each answer. The form needs [survey_panel_ui()]
+#'   or [survey_ui()].
 #' @return `spec` with the new config.
 #' @export
 #' @examples
@@ -263,9 +277,13 @@ set_config <- function(
   version = NULL,
   valid = NULL,
   skip_answered = NULL,
-  check_model = NULL
+  check_model = NULL,
+  methods = NULL
 ) {
   check_spec(spec)
+  if (!is.null(methods)) {
+    check_methods(methods)
+  }
   if (!is.null(skip_answered)) {
     check_bool(skip_answered)
   }
@@ -299,7 +317,8 @@ set_config <- function(
     version = version,
     valid = valid,
     skip_answered = skip_answered,
-    check_model = check_model
+    check_model = check_model,
+    methods = methods
   ))
   spec$config <- utils::modifyList(spec$config, given)
   spec
@@ -308,8 +327,15 @@ set_config <- function(
 #' @export
 print.surveychat_spec <- function(x, ...) {
   n <- length(x$questions)
-  cli::cat_line(cli::format_inline(
-    "<surveychat_spec> version {.val {x$config$version}}, {n} question{?s}"
+  methods <- x$config$methods
+  methods <- if ("form" %in% methods) {
+    paste(", methods", paste(methods, collapse = ", "))
+  }
+  cli::cat_line(paste0(
+    cli::format_inline(
+      "<surveychat_spec> version {.val {x$config$version}}, {n} question{?s}"
+    ),
+    methods
   ))
   for (i in seq_len(n)) {
     question <- x$questions[[i]]
@@ -369,7 +395,8 @@ default_messages <- function() {
     completion = "Thank you! Your answers are recorded.",
     closed = "Survey complete. Thank you!",
     locked = "Sorry, the service is unavailable right now.",
-    suggested = "*Ideas from AI. Pick one or type your own.*"
+    suggested = "*Ideas from AI. Pick one or type your own.*",
+    skipped = "(skipped)"
   )
 }
 
@@ -385,11 +412,12 @@ default_config <- function() {
       "unconventional, and it is not off-topic, rude, or nonsense"
     ),
     skip_answered = TRUE,
-    check_model = TRUE
+    check_model = TRUE,
+    methods = "chat"
   )
 }
 
-reserved_ids <- c("valid", "content")
+reserved_ids <- c("valid", "retry_hint", "content")
 
 check_id <- function(id, known, call = rlang::caller_env()) {
   check_string(id, call = call)
@@ -460,16 +488,30 @@ early_type <- function(question, answers) {
 }
 
 # The author writes `valid` as a condition; the flag description turns it into
-# the TRUE/FALSE instruction for the LLM
+# the TRUE/FALSE instruction for the LLM. For a reply that is not valid, the
+# optional hint tells the user what to change; the survey shows it in place
+# of the `retry` message.
 answer_schema <- function(id, answer, valid) {
   rule <- paste0(
     "TRUE if the reply is valid: ",
     sub("[.[:space:]]+$", "", valid),
     ". Otherwise FALSE."
   )
-  fields <- list(answer, ellmer::type_boolean(rule))
-  names(fields) <- c(id, "valid")
+  fields <- list(answer, ellmer::type_boolean(rule), retry_hint_type())
+  names(fields) <- c(id, "valid", "retry_hint")
   do.call(ellmer::type_object, fields)
+}
+
+retry_hint_type <- function() {
+  ellmer::type_string(
+    paste(
+      "Fill only if valid is FALSE: one short, friendly sentence to the user",
+      "that says what kind of answer to give, and asks them to try again.",
+      "Speak to the user directly. Do not mention rules, validation, or a",
+      "validator, and do not quote the condition. Otherwise omit this field."
+    ),
+    required = FALSE
+  )
 }
 
 question_ids <- function(spec) {

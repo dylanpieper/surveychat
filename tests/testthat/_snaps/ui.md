@@ -67,7 +67,7 @@
     Condition
       Error in `run_example()`:
       ! There is no example named "nope".
-      i The examples are "icecream".
+      i The examples are "demographics" or "icecream".
 
 # example_chat() passes a Chat through and rejects other values
 
@@ -76,7 +76,7 @@
     Condition
       Error:
       ! No chat is set for the example.
-      i Set `chat`, such as `chat = "openai/gpt-4.1-mini"`, or set the environment variable `SURVEYCHAT_CHAT`.
+      i Set `chat`, such as `chat = "openai/gpt-4.1-mini"`, or set the environment variable `SURVEYCHAT_MODEL`.
 
 ---
 

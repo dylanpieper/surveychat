@@ -32,8 +32,8 @@ toggle shows after the first answer. Use it with a
 \code{survey_server()} returns no value; it is called for its side
 effects.
 
-\code{survey_ui()} returns a full-page Shiny UI with the chat, a progress
-cue, and a footer that shows the closing message.
+\code{survey_ui()} returns a full-page Shiny UI with the
+\code{\link[=survey_panel_ui]{survey_panel_ui()}} card.
 }
 \description{
 \code{survey_ui()} and \code{survey_server()} are a Shiny module pair. Give both the
@@ -48,7 +48,17 @@ server writes the session row and sends the welcome. If the request fails,
 for example with an HTTP error, the survey locks and shows the \code{locked}
 message of \code{\link[=set_messages]{set_messages()}}. A chat in a closed sidebar starts when the user
 opens the sidebar. To skip the test prompt, use
-\code{set_config(check_model = FALSE)}.
+\code{set_config(check_model = FALSE)}. A survey that shows the form at the
+start (see the \code{methods} of \code{\link[=set_config]{set_config()}}) starts when the page loads.
+}
+
+\section{Form}{
+
+Each kept form answer is written to the chat transcript as a user message
+after its question, so the chat shows the survey when the user switches to
+it. A form answer that is asked again shows its hint under the field only.
+When the survey is complete, the form shows the \code{completion} message of
+\code{\link[=set_messages]{set_messages()}}.
 }
 
 \examples{

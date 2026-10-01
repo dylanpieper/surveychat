@@ -42,12 +42,14 @@ fake_chat <- function(..., .probe = "OK") {
 
 # Records each message the server streams and each drawer update, with no
 # real stream or browser. Returns a function that gives the messages;
-# `drawer = TRUE` gives the drawer calls as `list(type, content)`. It also
-# empties the model-check cache, because each test that uses it opens a chat.
+# `drawer = TRUE` gives the drawer calls as `list(type, content)`, and
+# `user = TRUE` the user messages that the server adds. It also empties the
+# model-check cache, because each test that uses it opens a chat.
 local_sent_messages <- function(env = parent.frame()) {
   local_probe_cache(env)
   log <- new.env()
   log$messages <- character()
+  log$user <- character()
   log$drawer <- list()
   testthat::local_mocked_bindings(
     bot_response = function(message, ...) {
@@ -63,8 +65,11 @@ local_sent_messages <- function(env = parent.frame()) {
     }
   }
   testthat::local_mocked_bindings(
-    chat_append = function(id, response, ...) {
+    chat_append = function(id, response, role = "assistant", ...) {
       force(response)
+      if (role == "user") {
+        log$user <- c(log$user, response)
+      }
       promises::promise_resolve(NULL)
     },
     chat_drawer_update = record_drawer("update"),
@@ -72,8 +77,14 @@ local_sent_messages <- function(env = parent.frame()) {
     .package = "shinychat",
     .env = env
   )
-  function(drawer = FALSE) {
-    if (drawer) log$drawer else log$messages
+  function(drawer = FALSE, user = FALSE) {
+    if (drawer) {
+      log$drawer
+    } else if (user) {
+      log$user
+    } else {
+      log$messages
+    }
   }
 }
 
@@ -139,4 +150,9 @@ test_spec <- function() {
       text = prompt_llm("Ask why {name} likes {flavor}"),
       answer = ellmer::type_string("Reason")
     )
+}
+
+# The number of matches of `pattern` in `text`; 0 when there is none
+count_matches <- function(pattern, text, fixed = FALSE) {
+  sum(gregexpr(pattern, text, fixed = fixed)[[1]] > 0)
 }
