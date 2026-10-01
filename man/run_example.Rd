@@ -4,11 +4,20 @@
 \alias{run_example}
 \title{Run an example survey}
 \usage{
-run_example(name = "icecream", ...)
+run_example(name = "icecream", chat = NULL, ...)
 }
 \arguments{
 \item{name}{The name of the example. Call \code{run_example(NULL)} to list the
 names.}
+
+\item{chat}{The chat that asks the questions. One of three forms:
+\itemize{
+\item \code{NULL} (default): the value of the environment variable
+\code{SURVEYCHAT_CHAT}. It is an error if the variable is not set.
+\item A string, \code{"provider/model"} or \code{"provider"}, for \code{\link[ellmer:chat-any]{ellmer::chat()}}.
+The provider reads its own key variable, such as \code{OPENAI_API_KEY}.
+\item An ellmer chat object, such as \code{\link[ellmer:chat_openai]{ellmer::chat_openai()}}.
+}}
 
 \item{...}{Other arguments for \code{\link[shiny:runApp]{shiny::runApp()}}.}
 }
@@ -19,12 +28,15 @@ value; the app runs until you stop it.
 \description{
 Starts an example app that ships with the package. The \code{"icecream"} example
 is the web page of an ice cream shop with a flavor survey in a side panel.
-It uses \code{\link[ellmer:chat_anthropic]{ellmer::chat_claude()}}, so it needs \code{ANTHROPIC_API_KEY}, and it
-stores the answers with RSQLite.
+It stores the answers with RSQLite. You choose the model with \code{chat}, or
+with the environment variable \code{SURVEYCHAT_CHAT}. The model must support
+structured output.
 }
 \examples{
 run_example(NULL)
 \dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
-run_example("icecream")
+run_example("icecream", chat = "anthropic/claude-haiku-4-5")
+run_example("icecream", chat = "openai/gpt-4.1-mini")
+run_example("icecream", chat = "ollama/llama3.2")
 \dontshow{\}) # examplesIf}
 }
