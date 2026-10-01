@@ -56,8 +56,9 @@ survey_ui(id, title = "Survey")
 
 `survey_server()` returns no value; it is called for its side effects.
 
-`survey_ui()` returns a full-page Shiny UI with the chat, a progress
-cue, and a footer that shows the closing message.
+`survey_ui()` returns a full-page Shiny UI with the
+[`survey_panel_ui()`](https://dylanpieper.github.io/surveychat/reference/survey_panel_ui.md)
+card.
 
 ## Start
 
@@ -68,7 +69,19 @@ request fails, for example with an HTTP error, the survey locks and
 shows the `locked` message of
 [`set_messages()`](https://dylanpieper.github.io/surveychat/reference/set_messages.md).
 A chat in a closed sidebar starts when the user opens the sidebar. To
-skip the test prompt, use `set_config(check_model = FALSE)`.
+skip the test prompt, use `set_config(check_model = FALSE)`. A survey
+that shows the form at the start (see the `methods` of
+[`set_config()`](https://dylanpieper.github.io/surveychat/reference/set_config.md))
+starts when the page loads.
+
+## Form
+
+Each kept form answer is written to the chat transcript as a user
+message after its question, so the chat shows the survey when the user
+switches to it. A form answer that is asked again shows its hint under
+the field only. When the survey is complete, the form shows the
+`completion` message of
+[`set_messages()`](https://dylanpieper.github.io/surveychat/reference/set_messages.md).
 
 ## Examples
 

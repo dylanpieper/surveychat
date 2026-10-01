@@ -18,6 +18,8 @@
 - [`survey_server()`](https://dylanpieper.github.io/surveychat/reference/survey_server.md)
   [`survey_ui()`](https://dylanpieper.github.io/surveychat/reference/survey_server.md)
   : Run a survey in a Shiny app
+- [`survey_panel_ui()`](https://dylanpieper.github.io/surveychat/reference/survey_panel_ui.md)
+  : Put the survey card in any page
 - [`survey_chat_ui()`](https://dylanpieper.github.io/surveychat/reference/survey_chat_ui.md)
   : Put the survey chat in any page
 - [`run_example()`](https://dylanpieper.github.io/surveychat/reference/run_example.md)

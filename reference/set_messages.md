@@ -13,7 +13,8 @@ set_messages(
   completion = NULL,
   closed = NULL,
   locked = NULL,
-  suggested = NULL
+  suggested = NULL,
+  skipped = NULL
 )
 ```
 
@@ -30,7 +31,9 @@ set_messages(
 
 - retry:
 
-  The message when an answer is not valid.
+  The message when an answer is not valid and the LLM gives no hint. The
+  extraction asks the LLM for a short hint that tells the user what to
+  change, and the survey shows the hint if there is one.
 
 - completion:
 
@@ -51,6 +54,11 @@ set_messages(
   The note before choices that the LLM writes. See the `choices`
   argument of
   [`add_question()`](https://dylanpieper.github.io/surveychat/reference/add_question.md).
+
+- skipped:
+
+  The text that the chat transcript shows for an optional question that
+  the user skipped in the form.
 
 ## Value
 

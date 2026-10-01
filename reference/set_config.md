@@ -15,7 +15,8 @@ set_config(
   version = NULL,
   valid = NULL,
   skip_answered = NULL,
-  check_model = NULL
+  check_model = NULL,
+  methods = NULL
 )
 ```
 
@@ -72,6 +73,19 @@ set_config(
   the next 5 minutes, so most sessions add no request. A failure serves
   the sessions of the next 5 seconds. If `FALSE`, the survey starts at
   once with no extra request.
+
+- methods:
+
+  How the user answers: `"chat"`, `"form"`, or both. The form shows one
+  question at each step with a Shiny input. A fixed choice needs no LLM
+  call. Typed text, and any answer to a question with its own `valid`
+  rule, gets the same LLM check as the chat. With both, the survey
+  starts with the form and the AI chat side by side, and three icon
+  buttons in the header change the view at any question. The database
+  records the `method` of each answer. The form needs
+  [`survey_panel_ui()`](https://dylanpieper.github.io/surveychat/reference/survey_panel_ui.md)
+  or
+  [`survey_ui()`](https://dylanpieper.github.io/surveychat/reference/survey_server.md).
 
 ## Value
 

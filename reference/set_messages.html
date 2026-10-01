@@ -58,7 +58,8 @@ names, and the other messages keep their current values.</p>
 <span>  completion <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  closed <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  locked <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  suggested <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  suggested <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  skipped <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -75,7 +76,9 @@ names, and the other messages keep their current values.</p>
 
 
 <dt id="arg-retry">retry<a class="anchor" aria-label="anchor" href="#arg-retry"></a></dt>
-<dd><p>The message when an answer is not valid.</p></dd>
+<dd><p>The message when an answer is not valid and the LLM gives no
+hint. The extraction asks the LLM for a short hint that tells the user
+what to change, and the survey shows the hint if there is one.</p></dd>
 
 
 <dt id="arg-completion">completion<a class="anchor" aria-label="anchor" href="#arg-completion"></a></dt>
@@ -95,6 +98,11 @@ the API key is missing, or the model does not answer when the chat opens.</p></d
 <dt id="arg-suggested">suggested<a class="anchor" aria-label="anchor" href="#arg-suggested"></a></dt>
 <dd><p>The note before choices that the LLM writes. See the
 <code>choices</code> argument of <code><a href="add_question.html">add_question()</a></code>.</p></dd>
+
+
+<dt id="arg-skipped">skipped<a class="anchor" aria-label="anchor" href="#arg-skipped"></a></dt>
+<dd><p>The text that the chat transcript shows for an optional
+question that the user skipped in the form.</p></dd>
 
 </dl></div>
     <div class="section level2">

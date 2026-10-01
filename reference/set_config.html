@@ -57,7 +57,8 @@
 <span>  version <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  valid <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  skip_answered <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  check_model <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  check_model <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  methods <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -112,6 +113,17 @@ of <code><a href="set_messages.html">set_messages()</a></code>. The request has 
 session that opens in the next 5 minutes, so most sessions add no
 request. A failure serves the sessions of the next 5 seconds. If <code>FALSE</code>,
 the survey starts at once with no extra request.</p></dd>
+
+
+<dt id="arg-methods">methods<a class="anchor" aria-label="anchor" href="#arg-methods"></a></dt>
+<dd><p>How the user answers: <code>"chat"</code>, <code>"form"</code>, or both. The
+form shows one question at each step with a Shiny input. A fixed choice
+needs no LLM call. Typed text, and any answer to a question with its own
+<code>valid</code> rule, gets the same LLM check as the chat. With both, the survey
+starts with the form and the AI chat side by side, and three icon
+buttons in the header change the view at any question. The database
+records the <code>method</code> of each answer. The form needs <code><a href="survey_panel_ui.html">survey_panel_ui()</a></code>
+or <code><a href="survey_server.html">survey_ui()</a></code>.</p></dd>
 
 </dl></div>
     <div class="section level2">

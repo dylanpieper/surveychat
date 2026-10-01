@@ -105,7 +105,10 @@ extraction prompt includes the question, so the condition has its
 context.</p>
 <p>When an answer is not valid:</p>
 <ol style="list-style-type: decimal">
-<li>The survey sends the retry message and asks again.</li>
+<li>The survey asks again. The same LLM call writes a short hint that
+tells the user what to change, such as “Please enter your age in years.”
+If there is no hint, the survey sends the <code>retry</code> message of
+<code><a href="../reference/set_messages.html">set_messages()</a></code>.</li>
 <li>After <code>tries</code> retries (default 2), the survey keeps the
 answer and continues. Thus, a user cannot stop the survey with a bad
 answer.</li>
@@ -243,9 +246,42 @@ always asked. Use <code>set_config(skip_answered = FALSE)</code> to ask
 every question.</p>
 </div>
 <div class="section level2">
+<h2 id="form-and-chat">Form and chat<a class="anchor" aria-label="anchor" href="#form-and-chat"></a>
+</h2>
+<p>Some users prefer a plain form, and some questions fit a form better.
+With <code>set_config(methods = c("form", "chat"))</code>, the survey
+starts with a form and the AI chat side by side. The form shows one
+question at each step. Three icon buttons in the header show both views
+side by side, the form alone, or the AI chat alone. With one method, the
+survey shows that view and no buttons.</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">survey_both</span> <span class="op">&lt;-</span> <span class="va">survey</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="../reference/set_config.html">set_config</a></span><span class="op">(</span>methods <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"form"</span>, <span class="st">"chat"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<p>The two views share one session and one set of answers:</p>
+<ul>
+<li>The form checks the type of each answer. A fixed choice, such as an
+enum value or a card, needs no LLM call and has
+<code>valid = TRUE</code>. Typed text, and any answer to a question with
+its own <code>valid</code> rule, gets the same LLM extraction and check
+as the chat, with the same retries. The Next button shows “Checking…”
+during the call. If the call fails, the form keeps the answer with
+<code>valid = NA</code>.</li>
+<li>An adaptive question or a generated intro is generated one time. The
+form shows the same text as the chat.</li>
+<li>The chat shows each form answer as a user message, so the transcript
+is complete after a switch.</li>
+</ul>
+<p>Each row in <code>responses</code> records its <code>method</code>:
+<code>chat</code> or <code>form</code>. The form needs
+<code><a href="../reference/survey_server.html">survey_ui()</a></code> or <code><a href="../reference/survey_panel_ui.html">survey_panel_ui()</a></code>, a card that
+you can put in any page. <code><a href="../reference/survey_chat_ui.html">survey_chat_ui()</a></code> is the chat
+alone. <code>run_example("demographics")</code> shows a form survey on a
+plain page.</p>
+</div>
+<div class="section level2">
 <h2 id="messages-and-config">Messages and config<a class="anchor" aria-label="anchor" href="#messages-and-config"></a>
 </h2>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">survey</span> <span class="op">&lt;-</span> <span class="va">survey</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu"><a href="../reference/set_messages.html">set_messages</a></span><span class="op">(</span></span>
 <span>    welcome <span class="op">=</span> <span class="st">"Hi! Three quick questions about ice cream."</span>,</span>
@@ -267,7 +303,8 @@ every question.</p>
 <td><code><a href="../reference/set_messages.html">set_messages()</a></code></td>
 <td>
 <code>welcome</code>, <code>retry</code>, <code>completion</code>,
-<code>closed</code>, <code>locked</code>, <code>suggested</code>
+<code>closed</code>, <code>locked</code>, <code>suggested</code>,
+<code>skipped</code>
 </td>
 </tr>
 <tr class="even">
@@ -276,7 +313,7 @@ every question.</p>
 <code>tries</code>, <code>response_delay</code>,
 <code>character_delay</code>, <code>delay_variance</code>,
 <code>version</code>, <code>valid</code>, <code>skip_answered</code>,
-<code>check_model</code>
+<code>check_model</code>, <code>methods</code>
 </td>
 </tr>
 </tbody>

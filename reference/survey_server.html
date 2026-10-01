@@ -97,8 +97,8 @@ toggle shows after the first answer. Use it with a
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p><code>survey_server()</code> returns no value; it is called for its side
 effects.</p>
-<p><code>survey_ui()</code> returns a full-page Shiny UI with the chat, a progress
-cue, and a footer that shows the closing message.</p>
+<p><code>survey_ui()</code> returns a full-page Shiny UI with the
+<code><a href="survey_panel_ui.html">survey_panel_ui()</a></code> card.</p>
     </div>
     <div class="section level2">
     <h2 id="start">Start<a class="anchor" aria-label="anchor" href="#start"></a></h2>
@@ -110,7 +110,18 @@ server writes the session row and sends the welcome. If the request fails,
 for example with an HTTP error, the survey locks and shows the <code>locked</code>
 message of <code><a href="set_messages.html">set_messages()</a></code>. A chat in a closed sidebar starts when the user
 opens the sidebar. To skip the test prompt, use
-<code>set_config(check_model = FALSE)</code>.</p>
+<code>set_config(check_model = FALSE)</code>. A survey that shows the form at the
+start (see the <code>methods</code> of <code><a href="set_config.html">set_config()</a></code>) starts when the page loads.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="form">Form<a class="anchor" aria-label="anchor" href="#form"></a></h2>
+
+
+<p>Each kept form answer is written to the chat transcript as a user message
+after its question, so the chat shows the survey when the user switches to
+it. A form answer that is asked again shows its hint under the field only.
+When the survey is complete, the form shows the <code>completion</code> message of
+<code><a href="set_messages.html">set_messages()</a></code>.</p>
     </div>
 
     <div class="section level2">

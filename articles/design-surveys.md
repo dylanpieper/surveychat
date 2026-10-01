@@ -34,7 +34,10 @@ includes the question, so the condition has its context.
 
 When an answer is not valid:
 
-1.  The survey sends the retry message and asks again.
+1.  The survey asks again. The same LLM call writes a short hint that
+    tells the user what to change, such as “Please enter your age in
+    years.” If there is no hint, the survey sends the `retry` message of
+    [`set_messages()`](https://dylanpieper.github.io/surveychat/reference/set_messages.md).
 2.  After `tries` retries (default 2), the survey keeps the answer and
     continues. Thus, a user cannot stop the survey with a bad answer.
 3.  Each attempt is a row in `responses`, with its `valid` flag and
@@ -162,6 +165,44 @@ questions, and the survey does not ask them. Adaptive questions are
 always asked. Use `set_config(skip_answered = FALSE)` to ask every
 question.
 
+## Form and chat
+
+Some users prefer a plain form, and some questions fit a form better.
+With `set_config(methods = c("form", "chat"))`, the survey starts with a
+form and the AI chat side by side. The form shows one question at each
+step. Three icon buttons in the header show both views side by side, the
+form alone, or the AI chat alone. With one method, the survey shows that
+view and no buttons.
+
+``` r
+
+survey_both <- survey |>
+  set_config(methods = c("form", "chat"))
+```
+
+The two views share one session and one set of answers:
+
+- The form checks the type of each answer. A fixed choice, such as an
+  enum value or a card, needs no LLM call and has `valid = TRUE`. Typed
+  text, and any answer to a question with its own `valid` rule, gets the
+  same LLM extraction and check as the chat, with the same retries. The
+  Next button shows “Checking…” during the call. If the call fails, the
+  form keeps the answer with `valid = NA`.
+- An adaptive question or a generated intro is generated one time. The
+  form shows the same text as the chat.
+- The chat shows each form answer as a user message, so the transcript
+  is complete after a switch.
+
+Each row in `responses` records its `method`: `chat` or `form`. The form
+needs
+[`survey_ui()`](https://dylanpieper.github.io/surveychat/reference/survey_server.md)
+or
+[`survey_panel_ui()`](https://dylanpieper.github.io/surveychat/reference/survey_panel_ui.md),
+a card that you can put in any page.
+[`survey_chat_ui()`](https://dylanpieper.github.io/surveychat/reference/survey_chat_ui.md)
+is the chat alone. `run_example("demographics")` shows a form survey on
+a plain page.
+
 ## Messages and config
 
 ``` r
@@ -178,8 +219,8 @@ Each call changes only the fields that it names.
 
 | Function | Fields |
 |----|----|
-| [`set_messages()`](https://dylanpieper.github.io/surveychat/reference/set_messages.md) | `welcome`, `retry`, `completion`, `closed`, `locked`, `suggested` |
-| [`set_config()`](https://dylanpieper.github.io/surveychat/reference/set_config.md) | `tries`, `response_delay`, `character_delay`, `delay_variance`, `version`, `valid`, `skip_answered`, `check_model` |
+| [`set_messages()`](https://dylanpieper.github.io/surveychat/reference/set_messages.md) | `welcome`, `retry`, `completion`, `closed`, `locked`, `suggested`, `skipped` |
+| [`set_config()`](https://dylanpieper.github.io/surveychat/reference/set_config.md) | `tries`, `response_delay`, `character_delay`, `delay_variance`, `version`, `valid`, `skip_answered`, `check_model`, `methods` |
 
 The `locked` message covers the chat when the survey cannot start. This
 occurs when the chat cannot authenticate, for example when the API key

@@ -1,10 +1,8 @@
 # Run an example survey
 
-Starts an example app that ships with the package. The `"icecream"`
-example is the web page of an ice cream shop with a flavor survey in a
-side panel. It stores the answers with RSQLite. You choose the model
-with `chat`, or with the environment variable `SURVEYCHAT_CHAT`. The
-model must support structured output.
+Starts an example app that ships with the package and stores the answers
+with RSQLite. You choose the model with `chat`, or with the environment
+variable `SURVEYCHAT_MODEL`. The model must support structured output.
 
 ## Usage
 
@@ -23,7 +21,7 @@ run_example(name = "icecream", chat = NULL, ...)
   The chat that asks the questions. One of three forms:
 
   - `NULL` (default): the value of the environment variable
-    `SURVEYCHAT_CHAT`. It is an error if the variable is not set.
+    `SURVEYCHAT_MODEL`. It is an error if the variable is not set.
 
   - A string, `"provider/model"` or `"provider"`, for
     [`ellmer::chat()`](https://ellmer.tidyverse.org/reference/chat-any.html).
@@ -42,14 +40,26 @@ run_example(name = "icecream", chat = NULL, ...)
 The names of the examples if `name` is `NULL`. Otherwise, no value; the
 app runs until you stop it.
 
+## Details
+
+The examples are:
+
+- `"icecream"`: the web page of an ice cream shop with a flavor survey
+  in a side panel.
+
+- `"demographics"`: a plain page with six questions about the user. It
+  starts with the form and the AI chat side by side, and the user can
+  show one of them alone.
+
 ## Examples
 
 ``` r
 run_example(NULL)
-#> [1] "icecream"
+#> [1] "demographics" "icecream"    
 if (FALSE) { # interactive()
 run_example("icecream", chat = "anthropic/claude-haiku-4-5")
 run_example("icecream", chat = "openai/gpt-4.1-mini")
 run_example("icecream", chat = "ollama/llama3.2")
+run_example("demographics", chat = "anthropic/claude-haiku-4-5")
 }
 ```
