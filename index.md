@@ -170,6 +170,7 @@ supported databases.
 | `retry_count` | Total retries in the session |
 | `version` | The version of the question set, from [`survey_spec()`](https://dylanpieper.github.io/surveychat/reference/survey_spec.md) or [`set_config()`](https://dylanpieper.github.io/surveychat/reference/set_config.md) |
 | `duration_seconds` | Time since the start, updated after each answer |
+| `methods` | The answer methods offered, such as `form,chat`, from [`set_config()`](https://dylanpieper.github.io/surveychat/reference/set_config.md) |
 
 **`responses`**: one row for each answer, including each retry.
 
@@ -183,6 +184,14 @@ supported databases.
 An answer that came early, in the reply to an earlier question, has no
 `question_text`. A skipped optional answer has no `answer_extracted`. A
 form answer has no `valid` flag when the LLM check failed.
+
+The schema is fixed.
+[`inst/data-dict.yaml`](https://github.com/dylanpieper/surveychat/blob/main/inst/data-dict.yaml)
+describes each table and column in the
+[data-dict](https://data-dict.tidyverse.org/) format, and the package
+installs it at `system.file("data-dict.yaml", package = "surveychat")`.
+To use your own table or column names, make views or copy the data on
+your side.
 
 ## Analyze the Data
 

@@ -249,6 +249,11 @@
 <td><code>duration_seconds</code></td>
 <td>Time since the start, updated after each answer</td>
 </tr>
+<tr>
+<td><code>methods</code></td>
+<td>The answer methods offered, such as <code>form,chat</code>, from <code><a href="reference/set_config.html">set_config()</a></code>
+</td>
+</tr>
 </tbody>
 </table>
 <p><strong><code>responses</code></strong>: one row for each answer, including each retry.</p>
@@ -288,6 +293,7 @@
 </tbody>
 </table>
 <p>An answer that came early, in the reply to an earlier question, has no <code>question_text</code>. A skipped optional answer has no <code>answer_extracted</code>. A form answer has no <code>valid</code> flag when the LLM check failed.</p>
+<p>The schema is fixed. <a href="https://github.com/dylanpieper/surveychat/blob/main/inst/data-dict.yaml" class="external-link"><code>inst/data-dict.yaml</code></a> describes each table and column in the <a href="https://data-dict.tidyverse.org/" class="external-link">data-dict</a> format, and the package installs it at <code>system.file("data-dict.yaml", package = "surveychat")</code>. To use your own table or column names, make views or copy the data on your side.</p>
 </div>
 <div class="section level2">
 <h2 id="analyze-the-data">Analyze the Data<a class="anchor" aria-label="anchor" href="#analyze-the-data"></a>

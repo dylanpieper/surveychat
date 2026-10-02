@@ -82,7 +82,8 @@ set_config(
   rule, gets the same LLM check as the chat. With both, the survey
   starts with the form and the AI chat side by side, and three icon
   buttons in the header change the view at any question. The database
-  records the `method` of each answer. The form needs
+  records the `methods` offered in each session and the `method` of each
+  answer. The form needs
   [`survey_panel_ui()`](https://dylanpieper.github.io/surveychat/reference/survey_panel_ui.md)
   or
   [`survey_ui()`](https://dylanpieper.github.io/surveychat/reference/survey_server.md).
