@@ -213,7 +213,7 @@ init_database <- function(con, quiet = FALSE) {
     "sessions",
     c(
       d$serial_pk("sessions", "session_id"),
-      "started_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP",
+      "started_at TIMESTAMP NOT NULL",
       "completed_at TIMESTAMP",
       "completed BOOLEAN NOT NULL DEFAULT FALSE",
       "retry_count INTEGER DEFAULT 0",
@@ -240,7 +240,7 @@ init_database <- function(con, quiet = FALSE) {
       "answer_raw TEXT NOT NULL",
       "answer_extracted TEXT",
       "valid BOOLEAN",
-      "responded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP",
+      "responded_at TIMESTAMP NOT NULL",
       "retry_attempt INTEGER DEFAULT 0",
       "duration_seconds INTEGER",
       "method TEXT",
@@ -331,8 +331,9 @@ renamed_columns <- list(
 # Each takes a connection or a pool and computes dates and durations in R,
 # because SQL date functions differ on every backend.
 
-# The current time in UTC. A `CURRENT_TIMESTAMP` default gives local time
-# on a backend whose session time zone is not UTC.
+# The current time in UTC. The time columns have no `CURRENT_TIMESTAMP`
+# default, which gives local time on a backend whose session time zone is
+# not UTC.
 utc_now <- function() {
   format(Sys.time(), "%Y-%m-%d %H:%M:%S", tz = "UTC")
 }
