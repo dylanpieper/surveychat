@@ -331,6 +331,12 @@ renamed_columns <- list(
 # Each takes a connection or a pool and computes dates and durations in R,
 # because SQL date functions differ on every backend.
 
+# The current time in UTC. A `CURRENT_TIMESTAMP` default gives local time
+# on a backend whose session time zone is not UTC.
+utc_now <- function() {
+  format(Sys.time(), "%Y-%m-%d %H:%M:%S", tz = "UTC")
+}
+
 # Opens a session row and returns its generated session_id. `methods` are
 # the answer methods that the user can use, stored in order as "form,chat".
 start_session <- function(con, version = "1.0", methods = "chat") {
@@ -340,6 +346,7 @@ start_session <- function(con, version = "1.0", methods = "chat") {
     con,
     "sessions",
     list(
+      started_at = utc_now(),
       version = as.character(version),
       methods = paste(methods, collapse = ",")
     ),
@@ -384,7 +391,8 @@ save_response <- function(
       valid = as.logical(valid),
       retry_attempt = as.integer(retry_attempt),
       duration_seconds = as.integer(duration_seconds),
-      method = as.character(method)
+      method = as.character(method),
+      responded_at = utc_now()
     )
   )
 }
@@ -407,7 +415,7 @@ complete_session <- function(con, session_id, duration_seconds) {
     "sessions",
     list(
       completed = TRUE,
-      completed_at = format(Sys.time(), "%Y-%m-%d %H:%M:%S", tz = "UTC"),
+      completed_at = utc_now(),
       duration_seconds = as.integer(duration_seconds)
     ),
     "session_id",

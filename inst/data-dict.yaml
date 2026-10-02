@@ -36,9 +36,9 @@ tables:
         time_zone: UTC
         constraints: [required]
         description: >
-          The time that the session row was made. The database sets it with
-          `CURRENT_TIMESTAMP`. The range is open because the table grows with
-          each session.
+          The time that the session row was made, written from R in UTC on
+          every backend. The range is open because the table grows with each
+          session.
         range: [-.inf, .inf]
       - name: completed_at
         label: Completion time
@@ -169,9 +169,9 @@ tables:
         time_zone: UTC
         constraints: [required]
         description: >
-          The time that the answer row was written. The database sets it with
-          `CURRENT_TIMESTAMP`. The range is open because the table grows with
-          each answer.
+          The time that the answer row was written, from R in UTC on every
+          backend. The range is open because the table grows with each
+          answer.
         range: [-.inf, .inf]
       - name: retry_attempt
         label: Retry attempt

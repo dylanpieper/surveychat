@@ -59,6 +59,23 @@ test_that("init_database() asks to add the methods column to an old table", {
   expect_error(init_database(con), "Add .*methods")
 })
 
+test_that("the row helpers write each time from R, in UTC", {
+  con <- local_sqlite()
+  init_database(con, quiet = TRUE)
+  local_mocked_bindings(utc_now = \() "2026-01-02 03:04:05")
+
+  id <- start_session(con)
+  save_response(con, id, "q", 1, "Q?", "a")
+  complete_session(con, id, 1)
+
+  times <- DBI::dbGetQuery(
+    con,
+    "SELECT started_at, completed_at, responded_at
+     FROM sessions JOIN responses USING (session_id)"
+  )
+  expect_equal(unlist(times, use.names = FALSE), rep("2026-01-02 03:04:05", 3))
+})
+
 test_that("dialect_for() falls back to ANSI for an unknown driver", {
   unknown <- structure(list(), class = "UnknownConnection")
   d <- dialect_for(unknown)
