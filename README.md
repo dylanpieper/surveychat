@@ -8,21 +8,30 @@ surveychat collects data in a conversation with [shinychat](https://posit-dev.gi
 pak::pak("dylanpieper/surveychat")
 ```
 
-## Example 🍦✨
+## Examples
 
-The package includes a demo: the web page of an ice cream shop with a flavor survey in a side panel. The survey asks about the favorites of the user, and a drawer beside the chat shows the answers so far. You choose the model with `chat`. The provider reads its own key variable, such as `ANTHROPIC_API_KEY`.
+The package includes two example apps:
+
+-   `"icecream"`: a chat survey in the side panel of an ice cream shop web page
+-   `"demographics"`: a form and the AI chat side by side
+
+Run each one with `run_example()`. You choose the model with `chat`, as `"provider/model"`. The provider reads its own key variable, such as `ANTHROPIC_API_KEY`. To set the model once, put `SURVEYCHAT_MODEL` in `~/.Renviron`. The model must support structured output.
+
+### Ice cream shop
+
+The survey asks about the favorites of the user, and a drawer beside the chat shows the answers so far.
 
 ``` r
 surveychat::run_example("icecream", chat = "anthropic/claude-haiku-4-5")
 ```
 
-Pass `"provider/model"` to use another model. To set the model once, put `SURVEYCHAT_MODEL` in `~/.Renviron`. The model must support structured output.
-
 <img src="man/figures/icecream.png" alt="The web page of an ice cream shop. A side panel on the right shows the survey chat. The bot, RoboScoop, greets the user, asks for their name with a card to stay anonymous, and then asks for their favorite flavor." width="100%"/>
 
 The source is in [`inst/examples/icecream/app.R`](https://github.com/dylanpieper/surveychat/blob/main/inst/examples/icecream/app.R).
 
-The `"demographics"` example shows a form and the AI chat side by side. The user can answer each question in either view, and the other view dims:
+### Demographics
+
+The user can answer each question in the form or in the chat, and the other view dims.
 
 ``` r
 surveychat::run_example("demographics", chat = "anthropic/claude-haiku-4-5")
