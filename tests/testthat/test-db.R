@@ -11,7 +11,7 @@ for (backend in names(backends)) {
     con <- backends[[backend]]()
     init_database(con, quiet = TRUE)
 
-    first <- start_session(con, version = "2.0")
+    first <- start_session(con, version = "2.0", methods = c("form", "chat"))
     second <- start_session(con)
     expect_gt(second, first)
 
@@ -21,14 +21,16 @@ for (backend in names(backends)) {
     increment_retry(con, first)
     complete_session(con, first, 12)
 
-    session <- DBI::dbGetQuery(
+    sessions <- DBI::dbGetQuery(
       con,
       "SELECT * FROM sessions ORDER BY session_id"
-    )[1, ]
+    )
+    session <- sessions[1, ]
     expect_equal(as.logical(session$completed), TRUE)
     expect_equal(session$retry_count, 2)
     expect_equal(session$duration_seconds, 12)
     expect_equal(session$version, "2.0")
+    expect_equal(sessions$methods, c("form,chat", "chat"))
 
     responses <- DBI::dbGetQuery(
       con,
@@ -47,6 +49,31 @@ test_that("init_database() asks to add the method column to an old table", {
   DBI::dbExecute(con, "ALTER TABLE responses DROP COLUMN method")
 
   expect_error(init_database(con), "Add .*method")
+})
+
+test_that("init_database() asks to add the methods column to an old table", {
+  con <- local_sqlite()
+  init_database(con, quiet = TRUE)
+  DBI::dbExecute(con, "ALTER TABLE sessions DROP COLUMN methods")
+
+  expect_error(init_database(con), "Add .*methods")
+})
+
+test_that("the row helpers write each time from R, in UTC", {
+  con <- local_sqlite()
+  init_database(con, quiet = TRUE)
+  local_mocked_bindings(utc_now = \() "2026-01-02 03:04:05")
+
+  id <- start_session(con)
+  save_response(con, id, "q", 1, "Q?", "a")
+  complete_session(con, id, 1)
+
+  times <- DBI::dbGetQuery(
+    con,
+    "SELECT started_at, completed_at, responded_at
+     FROM sessions JOIN responses USING (session_id)"
+  )
+  expect_equal(unlist(times, use.names = FALSE), rep("2026-01-02 03:04:05", 3))
 })
 
 test_that("dialect_for() falls back to ANSI for an unknown driver", {

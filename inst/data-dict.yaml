@@ -1,0 +1,211 @@
+$version: 0.1.0
+$learn_more: https://data-dict.tidyverse.org/
+name: surveychat
+label: surveychat survey data
+description: >
+  The two tables that surveychat writes to any DBI connection: one row for
+  each survey session and one row for each answer. The schema is fixed. To
+  use other table or column names, make views or copy the data on your side.
+origin: https://github.com/dylanpieper/surveychat/blob/main/R/db.R
+
+tables:
+  - name: sessions
+    label: Survey sessions
+    description: >
+      Each row is one user session of a survey, from the first message to the
+      last answer. A session that the user left before the end has
+      `completed` set to false.
+    constraints:
+      - assert: NOT(completed) OR completed_at IS NOT NULL
+        description: A completed session has a completion time.
+    definitions:
+      - name: completion_rate
+        label: Completion rate
+        description: The share of sessions that reached the last answer.
+        expr: AVG(CASE WHEN completed THEN 1 ELSE 0 END)
+    columns:
+      - name: session_id
+        label: Session ID
+        type: number(id)
+        constraints: [primary_key]
+        description: Key that the database generates.
+        examples: [1, 2, 3, 4, 5]
+      - name: started_at
+        label: Start time
+        type: datetime
+        time_zone: UTC
+        constraints: [required]
+        description: >
+          The time that the session row was made, written from R in UTC on
+          every backend. The range is open because the table grows with each
+          session.
+        range: [-.inf, .inf]
+      - name: completed_at
+        label: Completion time
+        type: datetime
+        time_zone: UTC
+        description: >
+          The time of the last answer. Null while the session is not complete.
+          The range is open because the table grows with each session.
+        range: [-.inf, .inf]
+      - name: completed
+        label: Completed
+        type: boolean
+        constraints: [required]
+        description: True after the last answer.
+      - name: retry_count
+        label: Retry count
+        type: number(quantity)
+        units: retries
+        description: >
+          The total number of times that the survey asked a question again in
+          this session, for all questions.
+        range: [0, .inf]
+      - name: version
+        label: Question set version
+        type: string
+        description: >
+          The version of the question set, from `survey_spec()` or
+          `set_config()`. Use it to separate the answers to different
+          versions of a survey.
+        examples: ["1.0", "1.1", "2.0"]
+      - name: duration_seconds
+        label: Session duration
+        type: number(quantity)
+        units: seconds
+        description: >
+          The time from the start of the session to the most recent answer.
+          The survey updates it after each answer.
+        range: [0, .inf]
+      - name: methods
+        label: Answer methods offered
+        type: enum
+        values:
+          chat: Chat only
+          form: Form only
+          chat,form: Chat and form, the chat first
+          form,chat: Form and chat, the form first
+        description: >
+          The answer methods that the user could use, from `set_config(methods
+          = )`, in the order given there. Compare it with `responses.method`
+          to separate a free choice of method from the only method offered.
+        details: >
+          Null for sessions that were written before the column was added.
+
+  - name: responses
+    label: Survey responses
+    description: >
+      Each row is one answer to one question, including each answer that the
+      survey asked again. To get the answer that the survey kept, take the
+      row with the highest `retry_attempt` for each session and question.
+    definitions:
+      - name: early_answer
+        label: Early answer
+        description: >
+          An answer that came in the reply to an earlier question, so the
+          survey did not ask its question.
+        expr: question_text IS NULL
+    columns:
+      - name: response_id
+        label: Response ID
+        type: number(id)
+        constraints: [primary_key]
+        description: Key that the database generates.
+        examples: [1, 2, 3, 4, 5]
+      - name: session_id
+        label: Session ID
+        type: number(id)
+        constraints: [required, foreign_key]
+        description: The session of the answer.
+        examples: [1, 1, 1, 2, 2]
+      - name: question_id
+        label: Question ID
+        type: string
+        constraints: [required]
+        description: The `id` of the question in `add_question()`.
+        examples: [name, flavor, why, age, country]
+      - name: question_order
+        label: Question order
+        type: number(ordinal)
+        constraints: [required]
+        description: >
+          The position of the question in the survey, from 1. An early answer
+          has the position of its own question, not of the question that the
+          user replied to.
+        range: [1, .inf]
+      - name: question_text
+        label: Question text
+        type: string
+        description: >
+          The question as the user saw it, after placeholders were filled and
+          the LLM wrote any adaptive text. Null for an early answer.
+        examples: ["What's your name?", "Hi Ana! What's your favorite ice cream flavor?", "How old are you?"]
+      - name: answer_raw
+        label: Raw answer
+        type: string
+        constraints: [required]
+        description: >
+          The text that the user typed or picked. For an early answer, the
+          full reply that gave it. The content depends on the questions of
+          each survey and can identify a person, such as a name.
+        examples: ["I'm Ana", "mint", "Woman", "34"]
+      - name: answer_extracted
+        label: Extracted answer
+        type: string
+        description: >
+          The answer that the LLM extracted, stored as text. Null for a
+          skipped optional answer. The content depends on the questions of
+          each survey and can identify a person, such as a name.
+        examples: ["Ana", "mint", "Woman", "34"]
+      - name: valid
+        label: Valid
+        type: boolean
+        description: >
+          Whether the answer met the `valid` condition of the question. Null
+          for a form answer when the LLM check failed.
+      - name: responded_at
+        label: Response time
+        type: datetime
+        time_zone: UTC
+        constraints: [required]
+        description: >
+          The time that the answer row was written, from R in UTC on every
+          backend. The range is open because the table grows with each
+          answer.
+        range: [-.inf, .inf]
+      - name: retry_attempt
+        label: Retry attempt
+        type: number(ordinal)
+        description: >
+          The number of times that the survey asked this question again before
+          this answer. 0 is the first answer.
+        range: [0, .inf]
+      - name: duration_seconds
+        label: Answer duration
+        type: number(quantity)
+        units: seconds
+        description: The time from the start of the question to this answer.
+        range: [0, .inf]
+      - name: method
+        label: Answer method
+        type: enum
+        values: [chat, form]
+        description: >
+          How the user gave this answer. The survey always records it. Rows
+          written before the column was added have no value.
+
+relationships:
+  - join: responses.session_id = sessions.session_id
+    cardinality: many-to-one
+    conflicts: [duration_seconds]
+
+glossary:
+  early answer: >
+    An answer to a later question that the user gave in the reply to an
+    earlier question. With `set_config(skip_answered = TRUE)`, the survey
+    records it and does not ask that question.
+  retry: >
+    The survey asks a question again when an answer does not meet its
+    `valid` condition, up to `tries` times.
+  answer method: >
+    The view where the user answers: the AI chat or the form.

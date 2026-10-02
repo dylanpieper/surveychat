@@ -27,7 +27,8 @@ SurveySession <- R6::R6Class(
     start = function() {
       private$session_id <- start_session(
         private$con,
-        version = private$config$version
+        version = private$config$version,
+        methods = private$config$methods %||% "chat"
       )
       private$session_start <- Sys.time()
       private$question_start <- Sys.time()

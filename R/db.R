@@ -213,12 +213,13 @@ init_database <- function(con, quiet = FALSE) {
     "sessions",
     c(
       d$serial_pk("sessions", "session_id"),
-      "started_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP",
+      "started_at TIMESTAMP NOT NULL",
       "completed_at TIMESTAMP",
       "completed BOOLEAN NOT NULL DEFAULT FALSE",
       "retry_count INTEGER DEFAULT 0",
       "version TEXT DEFAULT '1.0'",
-      "duration_seconds INTEGER"
+      "duration_seconds INTEGER",
+      "methods TEXT"
     ),
     indexes = list(
       idx_sessions_completed = "completed",
@@ -239,7 +240,7 @@ init_database <- function(con, quiet = FALSE) {
       "answer_raw TEXT NOT NULL",
       "answer_extracted TEXT",
       "valid BOOLEAN",
-      "responded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP",
+      "responded_at TIMESTAMP NOT NULL",
       "retry_attempt INTEGER DEFAULT 0",
       "duration_seconds INTEGER",
       "method TEXT",
@@ -298,7 +299,8 @@ written_columns <- list(
     "completed",
     "retry_count",
     "version",
-    "duration_seconds"
+    "duration_seconds",
+    "methods"
   ),
   responses = c(
     "session_id",
@@ -329,13 +331,26 @@ renamed_columns <- list(
 # Each takes a connection or a pool and computes dates and durations in R,
 # because SQL date functions differ on every backend.
 
-# Opens a session row and returns its generated session_id
-start_session <- function(con, version = "1.0") {
+# The current time in UTC. The time columns have no `CURRENT_TIMESTAMP`
+# default, which gives local time on a backend whose session time zone is
+# not UTC.
+utc_now <- function() {
+  format(Sys.time(), "%Y-%m-%d %H:%M:%S", tz = "UTC")
+}
+
+# Opens a session row and returns its generated session_id. `methods` are
+# the answer methods that the user can use, stored in order as "form,chat".
+start_session <- function(con, version = "1.0", methods = "chat") {
+  check_methods(methods)
   con <- checkout(con)
   insert_returning_id(
     con,
     "sessions",
-    list(version = as.character(version)),
+    list(
+      started_at = utc_now(),
+      version = as.character(version),
+      methods = paste(methods, collapse = ",")
+    ),
     "session_id"
   )
 }
@@ -377,7 +392,8 @@ save_response <- function(
       valid = as.logical(valid),
       retry_attempt = as.integer(retry_attempt),
       duration_seconds = as.integer(duration_seconds),
-      method = as.character(method)
+      method = as.character(method),
+      responded_at = utc_now()
     )
   )
 }
@@ -400,7 +416,7 @@ complete_session <- function(con, session_id, duration_seconds) {
     "sessions",
     list(
       completed = TRUE,
-      completed_at = format(Sys.time(), "%Y-%m-%d %H:%M:%S", tz = "UTC"),
+      completed_at = utc_now(),
       duration_seconds = as.integer(duration_seconds)
     ),
     "session_id",

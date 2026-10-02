@@ -434,9 +434,14 @@ test_that("a session can mix form and chat answers and records each method", {
     list(content = "Why mint, Ana?"),
     list(why = "fresh taste", valid = TRUE)
   )
-  engine <- SurveySession$new(test_spec(), chat, con)
+  spec <- set_config(test_spec(), methods = c("chat", "form"))
+  engine <- SurveySession$new(spec, chat, con)
   engine$start()
   engine$first_question()
+  expect_equal(
+    DBI::dbGetQuery(con, "SELECT methods FROM sessions")$methods,
+    "chat,form"
+  )
 
   expect_equal(
     engine$submit_form("  ana ")$message,
