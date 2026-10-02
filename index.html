@@ -80,20 +80,35 @@
 <code class="sourceCode R"><span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"dylanpieper/surveychat"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="example-icecreamsparkles">Example 🍦✨<a class="anchor" aria-label="anchor" href="#example-icecreamsparkles"></a>
+<h2 id="examples">Examples<a class="anchor" aria-label="anchor" href="#examples"></a>
 </h2>
-<p>The package includes a demo: the web page of an ice cream shop with a flavor survey in a side panel. The survey asks about the favorites of the user, and a drawer beside the chat shows the answers so far. You choose the model with <code>chat</code>. The provider reads its own key variable, such as <code>ANTHROPIC_API_KEY</code>.</p>
+<p>The package includes two example apps:</p>
+<ul>
+<li>
+<code>"icecream"</code>: a chat survey in the side panel of an ice cream shop web page</li>
+<li>
+<code>"demographics"</code>: a form and the AI chat side by side</li>
+</ul>
+<p>Run each one with <code><a href="reference/run_example.html">run_example()</a></code>. You choose the model with <code>chat</code>, as <code>"provider/model"</code>. The provider reads its own key variable, such as <code>ANTHROPIC_API_KEY</code>. To set the model once, put <code>SURVEYCHAT_MODEL</code> in <code>~/.Renviron</code>. The model must support structured output.</p>
+<div class="section level3">
+<h3 id="ice-cream-shop">Ice cream shop<a class="anchor" aria-label="anchor" href="#ice-cream-shop"></a>
+</h3>
+<p>The survey asks about the favorites of the user, and a drawer beside the chat shows the answers so far.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">surveychat</span><span class="fu">::</span><span class="fu"><a href="reference/run_example.html">run_example</a></span><span class="op">(</span><span class="st">"icecream"</span>, chat <span class="op">=</span> <span class="st">"anthropic/claude-haiku-4-5"</span><span class="op">)</span></span></code></pre></div>
-<p>Pass <code>"provider/model"</code> to use another model. To set the model once, put <code>SURVEYCHAT_MODEL</code> in <code>~/.Renviron</code>. The model must support structured output.</p>
 <p><img src="reference/figures/icecream.png" alt="The web page of an ice cream shop. A side panel on the right shows the survey chat. The bot, RoboScoop, greets the user, asks for their name with a card to stay anonymous, and then asks for their favorite flavor." width="100%"></p>
 <p>The source is in <a href="https://github.com/dylanpieper/surveychat/blob/main/inst/examples/icecream/app.R" class="external-link"><code>inst/examples/icecream/app.R</code></a>.</p>
-<p>The <code>"demographics"</code> example shows a form and the AI chat side by side. The user can answer each question in either view, and the other view dims:</p>
+</div>
+<div class="section level3">
+<h3 id="demographics">Demographics<a class="anchor" aria-label="anchor" href="#demographics"></a>
+</h3>
+<p>The user can answer each question in the form or in the chat, and the other view dims.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">surveychat</span><span class="fu">::</span><span class="fu"><a href="reference/run_example.html">run_example</a></span><span class="op">(</span><span class="st">"demographics"</span>, chat <span class="op">=</span> <span class="st">"anthropic/claude-haiku-4-5"</span><span class="op">)</span></span></code></pre></div>
 <p align="center">
 <img src="reference/figures/demographics.gif" alt="A survey card titled Tell us about you. On the left, a form asks How old are you? with a Next button. On the right, the AI chat asks the same question. The user types an answer in the chat, and the form dims while the chat is in use. Three icon buttons in the header show both views, the form alone, or the chat alone." width="715"></p>
 <p>The source is in <a href="https://github.com/dylanpieper/surveychat/blob/main/inst/examples/demographics/app.R" class="external-link"><code>inst/examples/demographics/app.R</code></a>.</p>
+</div>
 </div>
 <div class="section level2">
 <h2 id="key-features">Key Features<a class="anchor" aria-label="anchor" href="#key-features"></a>
