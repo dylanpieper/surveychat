@@ -261,7 +261,8 @@ set_messages <- function(
 #'   `valid` rule, gets the same LLM check as the chat. With both, the survey
 #'   starts with the form and the AI chat side by side, and three icon
 #'   buttons in the header change the view at any question. The database
-#'   records the `method` of each answer. The form needs [survey_panel_ui()]
+#'   records the `methods` offered in each session and the `method` of each
+#'   answer. The form needs [survey_panel_ui()]
 #'   or [survey_ui()].
 #' @return `spec` with the new config.
 #' @export

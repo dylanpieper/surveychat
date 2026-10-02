@@ -218,7 +218,8 @@ init_database <- function(con, quiet = FALSE) {
       "completed BOOLEAN NOT NULL DEFAULT FALSE",
       "retry_count INTEGER DEFAULT 0",
       "version TEXT DEFAULT '1.0'",
-      "duration_seconds INTEGER"
+      "duration_seconds INTEGER",
+      "methods TEXT"
     ),
     indexes = list(
       idx_sessions_completed = "completed",
@@ -298,7 +299,8 @@ written_columns <- list(
     "completed",
     "retry_count",
     "version",
-    "duration_seconds"
+    "duration_seconds",
+    "methods"
   ),
   responses = c(
     "session_id",
@@ -329,13 +331,18 @@ renamed_columns <- list(
 # Each takes a connection or a pool and computes dates and durations in R,
 # because SQL date functions differ on every backend.
 
-# Opens a session row and returns its generated session_id
-start_session <- function(con, version = "1.0") {
+# Opens a session row and returns its generated session_id. `methods` are
+# the answer methods that the user can use, stored in order as "form,chat".
+start_session <- function(con, version = "1.0", methods = "chat") {
+  check_methods(methods)
   con <- checkout(con)
   insert_returning_id(
     con,
     "sessions",
-    list(version = as.character(version)),
+    list(
+      version = as.character(version),
+      methods = paste(methods, collapse = ",")
+    ),
     "session_id"
   )
 }
