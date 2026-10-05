@@ -8,7 +8,7 @@
 \description{
 \if{html}{\figure{logo.png}{options: style='float: right' alt='logo' width='120'}}
 
-Collect survey data in 'shiny' with a chat, a form, or both, and let the participant switch between them. One question spec drives both views. An LLM checks typed answers against a rule you write, extracts structured data, and writes adaptive questions from earlier answers. Raw and extracted answers are stored on any 'DBI' backend.
+Collect survey data in 'shiny' with a chat, a form, or both, and let the participant switch between them. One question spec drives both views. An LLM checks typed answers against a default or custom rule, extracts structured data, and writes adaptive questions from earlier answers. Raw and extracted answers are stored on any 'DBI' backend.
 }
 \seealso{
 Useful links:

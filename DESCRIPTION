@@ -5,9 +5,10 @@ Authors@R:
     person("Dylan", "Pieper", , "dylanpieper@gmail.com", role = c("aut", "cre"))
 Description: Collect survey data in 'shiny' with a chat, a form, or both,
     and let the participant switch between them. One question spec drives
-    both views. An LLM checks typed answers against a rule you write,
-    extracts structured data, and writes adaptive questions from earlier
-    answers. Raw and extracted answers are stored on any 'DBI' backend.
+    both views. An LLM checks typed answers against a default or custom
+    rule, extracts structured data, and writes adaptive questions from
+    earlier answers. Raw and extracted answers are stored on any 'DBI'
+    backend.
 License: MIT + file LICENSE
 URL: https://github.com/dylanpieper/surveychat, https://dylanpieper.github.io/surveychat/
 BugReports: https://github.com/dylanpieper/surveychat/issues
