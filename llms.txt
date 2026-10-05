@@ -2,11 +2,12 @@
 
 surveychat is a [shinychat](https://posit-dev.github.io/shinychat/)
 toolkit for conversational and adaptive surveys. Participants answer in
-natural dialogue with an AI chat or in a form. An LLM checks typed
-answers against a default or custom rule, extracts data, and writes
-adaptive questions or skips ones already answered. Each answer goes to
-SQL tables through any DBI connection. Earlier answers pipe into later
-questions, so participants get a conversation in context and you get
+natural dialogue with a chat interface. An LLM routed through
+[ellmer](https://ellmer.tidyverse.org/) validates typed answers,
+extracts data, and writes adaptive questions or skips ones already
+answered. Each answer goes to SQL tables through a
+[DBI](https://dbi.r-dbi.org/) connection. Earlier answers pipe into
+later questions, so participants get treated in context and you get
 richer data.
 
 ## Installation
