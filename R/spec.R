@@ -1,0 +1,871 @@
+#' Start a survey spec
+#'
+#' A survey spec is a plain list with three parts: `questions`, `messages`,
+#' and `config`. Start it with `survey_spec()`, then add to it with the pipe
+#' verbs [add_question()], [set_messages()], and [set_config()]. Each verb
+#' returns the same list with one more part, so `str()` shows the full spec.
+#'
+#' @param version The version of the question set. The server writes it to
+#'   each session in the database.
+#' @return A list of class `surveychat_spec` with no questions, the default
+#'   messages, and the default config.
+#' @seealso [survey_server()] to run the spec.
+#' @export
+#' @examples
+#' survey <- survey_spec(version = "1.0") |>
+#'   add_question(
+#'     "name",
+#'     text = "What's your name?",
+#'     answer = ellmer::type_string("The person's first name")
+#'   ) |>
+#'   add_question(
+#'     "color",
+#'     text = "Hi {name}! What's your favorite color?",
+#'     answer = ellmer::type_string("The color")
+#'   )
+#' survey
+survey_spec <- function(version = "1.0") {
+  check_string(version)
+  structure(
+    list(
+      questions = list(),
+      messages = default_messages(),
+      config = utils::modifyList(default_config(), list(version = version))
+    ),
+    class = "surveychat_spec"
+  )
+}
+
+#' Add a question to a survey spec
+#'
+#' The order of the `add_question()` calls is the order of the survey. The
+#' package builds the extraction schema from `answer` and `valid`: one LLM call
+#' extracts the answer and validates it. If the answer is not valid, the survey
+#' asks again, up to `tries` times (see [set_config()]).
+#'
+#' @section Placeholders:
+#' `text`, the prompts, and the `format` of `intro` can use `{id}` placeholders
+#' for the answers to earlier questions. A placeholder that does not name an
+#' earlier question gives a warning, because the user would see the raw name.
+#' Use `{id|fallback}` for an answer that the user can skip, such as an
+#' optional name from `ellmer::type_string(required = FALSE)`: a skipped answer
+#' shows `fallback`.
+#'
+#' @param spec A survey spec from [survey_spec()].
+#' @param id The question id. It is the name of the extracted field and the
+#'   `question_id` in the database. It must be a syntactic name.
+#' @param text The question as a string, or a [prompt_llm()] for an adaptive
+#'   question that the LLM writes from the earlier answers.
+#' @param answer An ellmer type that describes the answer to extract: a
+#'   scalar type, such as [ellmer::type_string()], or a multi-select
+#'   `ellmer::type_array(ellmer::type_enum(...))`. The database stores a
+#'   multi-select answer as JSON text.
+#' @param valid The condition for a valid answer, written without TRUE or
+#'   FALSE, such as `"they mentioned any flavor"`. If `NULL`, the question uses
+#'   the default from [set_config()] at the time of this call. With the
+#'   built-in default, a yes or no question also treats a vague reply, such
+#'   as "maybe", as not valid; to keep doubt as an answer, use an enum such
+#'   as `c("Yes", "Maybe", "No")`.
+#' @param intro An optional [prompt_llm()] with a `format`. The LLM generates
+#'   content that the survey shows before the question.
+#' @param choices The choices that the user can pick: buttons that answer
+#'   with one click in the chat and the form. The form also has a text box
+#'   for another answer. `NULL` gives the values of an
+#'   [ellmer::type_enum()] and no choices for other types. A
+#'   character vector shows those choices. A [prompt_llm()] makes the LLM
+#'   write the choices from the earlier answers; the `suggested` message of
+#'   [set_messages()] tells the user that they are from the LLM. A list of one
+#'   [prompt_llm()] and strings, such as
+#'   `list(prompt_llm("Suggest 2 toppings"), "No topping")`, always shows the
+#'   strings after the generated choices. The user can also type an answer.
+#' @param when An optional one-sided formula on the answers to earlier
+#'   questions, such as `~ served == "Cone"`. The survey asks the question
+#'   only when the rule is `TRUE`. The rule can also use values from its
+#'   environment, such as a constant. R evaluates the rule, so it needs no LLM
+#'   call. A skipped answer is `NA`, and a rule that is not `TRUE` skips the
+#'   question. A question that the rule skips writes no row.
+#' @param input An optional input hint for a string answer. `"date"` shows
+#'   a date input in the form, stores the date as `YYYY-MM-DD`, and tells the
+#'   chat extraction that format. A date needs no LLM call in the form.
+#' @return `spec` with the question added at the end.
+#' @export
+#' @examples
+#' survey_spec() |>
+#'   add_question(
+#'     "flavor",
+#'     text = "What's your favorite ice cream flavor?",
+#'     answer = ellmer::type_string("The ice cream flavor"),
+#'     valid = "they mentioned any flavor"
+#'   ) |>
+#'   add_question(
+#'     "why",
+#'     text = "What makes {flavor} your favorite?",
+#'     intro = prompt_llm(
+#'       "Share a short fun fact about {flavor} ice cream.",
+#'       format = "Oh, {flavor}! {content}"
+#'     ),
+#'     answer = ellmer::type_string("The reason they like it")
+#'   ) |>
+#'   add_question(
+#'     "follow_up",
+#'     text = prompt_llm(
+#'       "The user likes {flavor} because: {why}. Ask one follow-up question."
+#'     ),
+#'     answer = ellmer::type_string("The answer to the follow-up question")
+#'   )
+#'
+#' survey_spec() |>
+#'   add_question(
+#'     "served",
+#'     text = "How do you like your ice cream served?",
+#'     answer = ellmer::type_enum(c("Cone", "Cup"))
+#'   ) |>
+#'   add_question(
+#'     "cone",
+#'     text = "Waffle cone or sugar cone?",
+#'     answer = ellmer::type_enum(c("Waffle", "Sugar")),
+#'     when = ~ served == "Cone"
+#'   )
+add_question <- function(
+  spec,
+  id,
+  text,
+  answer,
+  valid = NULL,
+  intro = NULL,
+  choices = NULL,
+  when = NULL,
+  input = NULL
+) {
+  check_spec(spec)
+  known <- question_ids(spec)
+  check_id(id, known)
+  check_when(when, known)
+  if (!rlang::is_string(text)) {
+    check_prompt(text)
+  }
+  # The database stores one value for each answer: a scalar, or a
+  # multi-select as JSON
+  if (!is_answer_type(answer)) {
+    cli::cli_abort(c(
+      "{.arg answer} must be a scalar ellmer type or a multi-select, not {.obj_type_friendly {answer}}.",
+      "i" = "Use {.fn ellmer::type_string}, {.fn ellmer::type_number}, {.fn ellmer::type_integer}, {.fn ellmer::type_boolean}, {.fn ellmer::type_enum}, or {.code ellmer::type_array(ellmer::type_enum(...))}."
+    ))
+  }
+  answer <- check_input(input, answer)
+  if (identical(input, "date") && !is.null(choices)) {
+    cli::cli_abort("A date input cannot have {.arg choices}.")
+  }
+  own_valid <- !is.null(valid)
+  valid <- valid %||% spec$config$valid
+  check_string(valid)
+  if (!is.null(intro)) {
+    check_prompt(intro)
+    if (is.null(intro$format)) {
+      cli::cli_abort(
+        "{.arg intro} needs a {.arg format} that places {.code {{content}}}."
+      )
+    }
+  }
+
+  question <- list(
+    id = id,
+    text = text,
+    intro = intro,
+    valid = valid,
+    own_valid = own_valid,
+    answer = answer,
+    choices = question_choices(choices, answer),
+    when = when,
+    input = input,
+    when_ids = if (!is.null(when)) {
+      intersect(all.vars(rlang::f_rhs(when)), known)
+    },
+    schema = answer_schema(
+      id,
+      answer,
+      valid,
+      strict = !own_valid && identical(valid, default_config()$valid),
+      input = input
+    )
+  )
+  where <- paste("Question", id)
+  warn_placeholders(question_templates(question), known, where)
+  warn_placeholders(intro$format, c(known, "content"), where)
+
+  spec$questions <- c(spec$questions, list(question))
+  spec
+}
+
+#' Describe text for the LLM to generate
+#'
+#' Use `prompt_llm()` for `text` in [add_question()] to make an adaptive
+#' question, or for `intro` to put generated content before a question.
+#'
+#' An intro gets only the answers that its placeholders name. An adaptive
+#' question and a generated `completion` in [set_messages()] also get every
+#' answer so far, as does the LLM validation of each reply. Each answer is one
+#' line, `- <question> (id): value`, with the question text that the user saw.
+#'
+#' @param prompt The prompt for the LLM. It can use `{id}` placeholders for
+#'   the answers to earlier questions.
+#' @param format For `intro`, or a generated `completion` in
+#'   [set_messages()]: a template that places the generated text. It must
+#'   contain `{content}` and can use `{id}` placeholders. For an intro, the
+#'   survey puts the question after it, with a blank line between.
+#' @return A list of class `surveychat_prompt`.
+#' @export
+#' @examples
+#' prompt_llm("Share a short fun fact about {flavor} ice cream.")
+#' prompt_llm("Share a fun fact about {flavor}.", format = "Oh! {content}")
+prompt_llm <- function(prompt, format = NULL) {
+  check_string(prompt)
+  if (!is.null(format)) {
+    check_string(format)
+    if (!"content" %in% extract_variables(format)) {
+      cli::cli_abort("{.arg format} must contain {.code {{content}}}.")
+    }
+  }
+  structure(list(prompt = prompt, format = format), class = "surveychat_prompt")
+}
+
+#' Set the messages of a survey spec
+#'
+#' Each argument is optional. The call changes only the messages that it
+#' names, and the other messages keep their current values.
+#'
+#' @param spec A survey spec from [survey_spec()].
+#' @param welcome The first message of the survey.
+#' @param retry The message when an answer is not valid and the LLM gives no
+#'   hint. The extraction asks the LLM for a short hint that tells the user
+#'   what to change, and the survey shows the hint if there is one.
+#' @param completion The message after the last answer. It can use `{id}`
+#'   placeholders for any answer. It can also be a [prompt_llm()] with a
+#'   `format`: the LLM writes `{content}` from the answers, such as a short
+#'   reflection on what the user said, and the format places it. The LLM
+#'   gets every answer of the session for this call. If the generation
+#'   fails, the survey shows the format without the content.
+#' @param closed The text that replaces the chat input after the survey.
+#' @param locked The text that covers the chat when the survey cannot start:
+#'   the API key is missing, or the model does not answer when the chat opens.
+#' @param suggested The note before choices that the LLM writes. See the
+#'   `choices` argument of [add_question()].
+#' @param skipped The text that the chat transcript shows for an optional
+#'   question that the user skipped in the form.
+#' @param date The message when a chat reply to a date question does not
+#'   give a full date. See the `input` argument of [add_question()].
+#' @return `spec` with the new messages.
+#' @export
+#' @examples
+#' survey_spec() |>
+#'   set_messages(welcome = "Hi! Three quick questions.")
+set_messages <- function(
+  spec,
+  welcome = NULL,
+  retry = NULL,
+  completion = NULL,
+  closed = NULL,
+  locked = NULL,
+  suggested = NULL,
+  skipped = NULL,
+  date = NULL
+) {
+  check_spec(spec)
+  given <- compact(list(
+    welcome = welcome,
+    retry = retry,
+    completion = completion,
+    closed = closed,
+    locked = locked,
+    suggested = suggested,
+    skipped = skipped,
+    date = date
+  ))
+  if (inherits(completion, "surveychat_prompt")) {
+    if (is.null(completion$format)) {
+      cli::cli_abort(
+        "A generated {.arg completion} needs a {.arg format} that places {.code {{content}}}."
+      )
+    }
+    given$completion <- NULL
+  }
+  for (name in names(given)) {
+    check_string(given[[name]], arg = name)
+  }
+  spec$messages <- utils::modifyList(spec$messages, given)
+  if (inherits(completion, "surveychat_prompt")) {
+    spec$messages$completion <- completion
+  }
+  spec
+}
+
+#' Set the config of a survey spec
+#'
+#' Each argument is optional. The call changes only the values that it names.
+#'
+#' @param spec A survey spec from [survey_spec()].
+#' @param tries The maximum number of retries for an answer that is not valid.
+#'   After the last retry, the survey keeps the answer and continues.
+#' @param response_delay The delay in seconds before the bot starts a message.
+#' @param character_delay The delay in seconds between characters of the
+#'   simulated typing. Use `0` for no delay.
+#' @param delay_variance The random variation in seconds of `character_delay`.
+#' @param version The version of the question set.
+#' @param valid The default condition for a valid answer. It applies to each
+#'   [add_question()] call after this one that has no `valid` of its own.
+#' @param skip_answered Whether the survey can leave out questions that the
+#'   answers already cover. If `TRUE`, the LLM also extracts clear answers to
+#'   later fixed questions, and the survey records them and does not ask
+#'   those questions. In the database, such an answer has no
+#'   `question_text`, and `answer_raw` is the reply that gave it. The LLM can
+#'   also skip an adaptive question that the answers already cover. If
+#'   `FALSE`, the survey asks every question.
+#' @param check_model Whether the server sends the model a short test prompt
+#'   when the chat opens. If `TRUE`, a spinner covers the chat until the model
+#'   answers, and a failed request locks the survey with the `locked` message
+#'   of [set_messages()]. The request has one try. A success serves every
+#'   session that opens in the next 5 minutes, so most sessions add no
+#'   request. A failure serves the sessions of the next 5 seconds. If `FALSE`,
+#'   the survey starts at once with no extra request.
+#' @param views The views that the user can use, in order: `"chat"`,
+#'   `"form"`, `"side_by_side"`, or more than one. The survey starts with the
+#'   first view. Side by side shows the form and the chat at once, which helps
+#'   most while you build and test a survey. With more than one view, the
+#'   header has one icon button for each view, in the order given, to change
+#'   the view at any question. The form shows one question at each step with
+#'   a Shiny input. A fixed choice needs no LLM call. Typed text, and any
+#'   answer to a question with its own `valid` rule, gets the same LLM
+#'   validation as the chat. The database records the answer `methods` that
+#'   the views offer in each session and the `method` of each answer. The
+#'   form needs [survey_panel_ui()] or [survey_ui()].
+#' @return `spec` with the new config.
+#' @export
+#' @examples
+#' survey_spec() |>
+#'   set_config(tries = 3, character_delay = 0)
+set_config <- function(
+  spec,
+  tries = NULL,
+  response_delay = NULL,
+  character_delay = NULL,
+  delay_variance = NULL,
+  version = NULL,
+  valid = NULL,
+  skip_answered = NULL,
+  check_model = NULL,
+  views = NULL
+) {
+  check_spec(spec)
+  if (!is.null(views)) {
+    check_views(views)
+  }
+  if (!is.null(skip_answered)) {
+    check_bool(skip_answered)
+  }
+  if (!is.null(check_model)) {
+    check_bool(check_model)
+  }
+  if (!is.null(tries)) {
+    check_number(tries, whole = TRUE)
+  }
+  if (!is.null(response_delay)) {
+    check_number(response_delay)
+  }
+  if (!is.null(character_delay)) {
+    check_number(character_delay)
+  }
+  if (!is.null(delay_variance)) {
+    check_number(delay_variance)
+  }
+  if (!is.null(version)) {
+    check_string(version)
+  }
+  if (!is.null(valid)) {
+    check_string(valid)
+  }
+
+  given <- compact(list(
+    tries = tries,
+    response_delay = response_delay,
+    character_delay = character_delay,
+    delay_variance = delay_variance,
+    version = version,
+    valid = valid,
+    skip_answered = skip_answered,
+    check_model = check_model,
+    views = views
+  ))
+  spec$config <- utils::modifyList(spec$config, given)
+  spec
+}
+
+#' @export
+print.surveychat_spec <- function(x, ...) {
+  n <- length(x$questions)
+  views <- x$config$views
+  views <- if (!identical(views, "chat")) {
+    paste(", views", paste(views, collapse = ", "))
+  }
+  cli::cat_line(paste0(
+    cli::format_inline(
+      "<surveychat_spec> version {.val {x$config$version}}, {n} question{?s}"
+    ),
+    views
+  ))
+  for (i in seq_len(n)) {
+    question <- x$questions[[i]]
+    tags <- c(
+      if (is_adaptive(question)) "adaptive",
+      if (!is.null(question$intro)) "intro",
+      if (!is.null(question$choices$prompt)) {
+        "generated choices"
+      } else if (!is.null(question$choices)) {
+        "choices"
+      },
+      if (question$own_valid) "own rule",
+      if (!is.null(question$when)) "when"
+    )
+    tags <- if (length(tags)) paste0(" [", paste(tags, collapse = ", "), "]")
+    cli::cat_line(sprintf("%d. %s%s", i, question$id, tags %||% ""))
+  }
+  invisible(x)
+}
+
+# Checks run once, when the server starts ----
+
+validate_spec <- function(spec, call = rlang::caller_env()) {
+  check_spec(spec, call = call)
+  if (length(spec$questions) == 0) {
+    cli::cli_abort(
+      c(
+        "The survey has no questions.",
+        "i" = "Add one with {.fn add_question}."
+      ),
+      call = call
+    )
+  }
+  first <- spec$questions[[1]]
+  if (is_adaptive(first)) {
+    cli::cli_abort(
+      c(
+        "The first question {.val {first$id}} cannot be adaptive.",
+        "i" = "There are no earlier answers for its prompt to use."
+      ),
+      call = call
+    )
+  }
+  if (!is.null(first$when)) {
+    cli::cli_abort(
+      c(
+        "The first question {.val {first$id}} cannot have a {.arg when} rule.",
+        "i" = "There are no earlier answers for the rule to use."
+      ),
+      call = call
+    )
+  }
+  completion <- spec$messages$completion
+  if (inherits(completion, "surveychat_prompt")) {
+    warn_placeholders(
+      completion$prompt,
+      question_ids(spec),
+      "The completion prompt"
+    )
+    warn_placeholders(
+      completion$format,
+      c(question_ids(spec), "content"),
+      "The completion message"
+    )
+  } else {
+    warn_placeholders(completion, question_ids(spec), "The completion message")
+  }
+  invisible(spec)
+}
+
+# Helpers ----
+
+# A scalar ellmer type, or an array of an enum for a multi-select
+is_answer_type <- function(answer) {
+  inherits(answer, "ellmer::TypeBasic") ||
+    inherits(answer, "ellmer::TypeEnum") ||
+    (inherits(answer, "ellmer::TypeArray") &&
+      inherits(answer@items, "ellmer::TypeEnum"))
+}
+
+# The values of an enum or a multi-select, or NULL for other types
+enum_values <- function(answer) {
+  if (inherits(answer, "ellmer::TypeEnum")) {
+    return(answer@values)
+  }
+  if (inherits(answer, "ellmer::TypeArray")) {
+    return(answer@items@values)
+  }
+  NULL
+}
+
+# The input hint is NULL or "date", and "date" needs a string answer. A date
+# answer tells the extraction its format. Returns the answer type.
+check_input <- function(input, answer, call = rlang::caller_env()) {
+  if (is.null(input)) {
+    return(answer)
+  }
+  if (!rlang::is_string(input, "date")) {
+    cli::cli_abort(
+      if (rlang::is_string(input)) {
+        "{.arg input} must be {.code NULL} or {.val date}, not {.val {input}}."
+      } else {
+        "{.arg input} must be {.code NULL} or {.val date}, not {.obj_type_friendly {input}}."
+      },
+      call = call
+    )
+  }
+  if (!identical(answer_kind(answer), "string")) {
+    cli::cli_abort(
+      "{.code input = \"date\"} needs an answer from {.fn ellmer::type_string}.",
+      call = call
+    )
+  }
+  description <- trimws(answer@description %||% "")
+  if (nzchar(description) && !grepl("[.!?]$", description)) {
+    description <- paste0(description, ".")
+  }
+  answer@description <- trimws(paste(
+    description,
+    "Use the ISO date format YYYY-MM-DD."
+  ))
+  answer
+}
+
+# The kind of input of a question: "date" for a date input, or else the
+# kind of its answer type
+question_kind <- function(question) {
+  if (identical(question$input, "date")) {
+    "date"
+  } else {
+    answer_kind(question$answer)
+  }
+}
+
+default_messages <- function() {
+  list(
+    welcome = "Hello! Thanks for taking this survey.",
+    retry = "Sorry, I didn't quite get that. Could you try again?",
+    completion = "Thank you! Your answers are recorded.",
+    closed = "Survey complete. Thank you!",
+    locked = "Sorry, the service is unavailable right now.",
+    suggested = "*Ideas from AI. Pick one or type your own.*",
+    skipped = "(skipped)",
+    date = "Please give a full date, such as November 3."
+  )
+}
+
+default_config <- function() {
+  list(
+    tries = 2,
+    response_delay = 0,
+    character_delay = 0.02,
+    delay_variance = 0.01,
+    version = "1.0",
+    valid = paste(
+      "the reply answers the question, even if it is brief, informal, or",
+      "unconventional, and it is not off-topic, rude, or nonsense"
+    ),
+    skip_answered = TRUE,
+    check_model = TRUE,
+    views = "chat"
+  )
+}
+
+reserved_ids <- c("valid", "retry_hint", "content")
+
+# The most choices that the LLM writes for one question
+max_generated_choices <- 4
+
+check_id <- function(id, known, call = rlang::caller_env()) {
+  check_string(id, call = call)
+  # A leading dot would bind to a formal argument of ellmer::type_object()
+  if (make.names(id) != id || startsWith(id, ".")) {
+    cli::cli_abort(
+      "{.arg id} must be a syntactic name that does not start with a dot, not {.val {id}}.",
+      call = call
+    )
+  }
+  if (id %in% reserved_ids) {
+    cli::cli_abort(
+      "{.arg id} cannot be {.val {id}}; the package uses that name.",
+      call = call
+    )
+  }
+  if (id %in% known) {
+    cli::cli_abort(
+      "The spec already has a question with id {.val {id}}.",
+      call = call
+    )
+  }
+  invisible(id)
+}
+
+# A `when` rule is a one-sided formula on the ids of earlier questions. It
+# can also use values from its environment, such as `T` or a constant. Any
+# other name, or a name that finds only a function, is an error, because the
+# rule could never be TRUE as the author meant.
+check_when <- function(when, known, call = rlang::caller_env()) {
+  if (is.null(when)) {
+    return(invisible(when))
+  }
+  if (!rlang::is_formula(when, lhs = FALSE)) {
+    cli::cli_abort(
+      "{.arg when} must be a one-sided formula, such as {.code ~ served == \"Cone\"}.",
+      call = call
+    )
+  }
+  unknown <- setdiff(all.vars(rlang::f_rhs(when)), known)
+  env <- rlang::f_env(when)
+  is_value <- \(name) {
+    value <- get0(name, envir = env, inherits = TRUE)
+    !is.null(value) && !is.function(value)
+  }
+  unknown <- unknown[!vapply(unknown, is_value, logical(1))]
+  if (length(unknown)) {
+    cli::cli_abort(
+      c(
+        "{.arg when} uses {cli::qty(unknown)}name{?s} {.val {unknown}} that {?does/do} not name an earlier question.",
+        "i" = "A rule can use only the answers to earlier questions."
+      ),
+      call = call
+    )
+  }
+  invisible(when)
+}
+
+# Whether a question applies: it has no `when` rule, or its rule is TRUE for
+# `answers`. A missing answer is NA, so a rule on it is not TRUE. A rule that
+# fails gives a warning and skips the question.
+when_applies <- function(question, answers) {
+  when <- question$when
+  if (is.null(when)) {
+    return(TRUE)
+  }
+  ids <- question$when_ids
+  data <- lapply(rlang::set_names(ids), \(id) answers[[id]] %||% NA)
+  result <- tryCatch(
+    rlang::eval_tidy(rlang::f_rhs(when), data, rlang::f_env(when)),
+    error = function(err) {
+      cli::cli_warn(
+        "The {.arg when} rule of question {.val {question$id}} failed; the survey skips the question.",
+        parent = err
+      )
+      FALSE
+    }
+  )
+  isTRUE(result)
+}
+
+# The schema for one reply: the question's own schema, plus an optional field
+# for each later question that the reply can answer early
+extraction_schema <- function(question, later, answers) {
+  if (length(later) == 0) {
+    return(dated_schema(question))
+  }
+  # The current answer is not known yet, so its placeholder names it plainly
+  known <- utils::modifyList(
+    answers,
+    rlang::list2(!!question$id := "(the answer to this question)")
+  )
+  early <- lapply(later, \(other) early_type(other, known))
+  names(early) <- vapply(later, \(other) other$id, character(1))
+  do.call(ellmer::type_object, c(dated_schema(question)@properties, early))
+}
+
+# A relative date, such as "next Friday", needs today's date. The date is
+# added when the survey extracts, so it is never stale.
+dated_type <- function(type) {
+  type@description <- paste(
+    type@description,
+    sprintf("Today is %s.", format(now(), "%Y-%m-%d"))
+  )
+  type
+}
+
+dated_schema <- function(question) {
+  schema <- question$schema
+  if (question_kind(question) == "date") {
+    schema@properties[[question$id]] <- dated_type(
+      schema@properties[[question$id]]
+    )
+  }
+  schema
+}
+
+# A later question's answer type, made optional, with its question in the
+# description so the LLM fills it only for a clear answer. A question with
+# its own valid rule adds that rule; the default rule adds nothing to
+# "clearly answers".
+early_type <- function(question, answers) {
+  type <- question$answer
+  if (question_kind(question) == "date") {
+    type <- dated_type(type)
+  }
+  type@required <- FALSE
+  rule <- if (question$own_valid) {
+    sprintf(
+      ", and for that question %s",
+      sub("[.[:space:]]+$", "", question$valid)
+    )
+  }
+  type@description <- paste(
+    c(
+      sprintf(
+        "Fill only if the reply clearly answers the later question \"%s\"%s.",
+        interpolate(question$text, answers),
+        rule %||% ""
+      ),
+      type@description,
+      "Otherwise omit this field."
+    ),
+    collapse = " "
+  )
+  type
+}
+
+# The author writes `valid` as a condition; the flag description turns it into
+# the TRUE/FALSE instruction for the LLM. For a reply that is not valid, the
+# optional hint tells the user what to change; the survey shows it in place
+# of the `retry` message.
+answer_schema <- function(id, answer, valid, strict = FALSE, input = NULL) {
+  rule <- paste0(
+    "TRUE if the reply is valid: ",
+    sub("[.[:space:]]+$", "", valid),
+    ". ",
+    # With the default rule, a yes or no answer cannot hold doubt, so a
+    # vague reply is asked again and not stored as a guess
+    if (strict && identical(answer_kind(answer), "boolean")) {
+      "A reply that is not a clear yes or no, such as 'maybe' or 'not sure', is not valid. "
+    },
+    # Examples in the text of a free-text question are not a closed list. A
+    # date input is not free text, so a vague date stays not valid.
+    if (
+      strict &&
+        identical(answer_kind(answer), "string") &&
+        !identical(input, "date")
+    ) {
+      "Examples in the question are only suggestions; any reasonable answer counts. Judge whether the reply is on topic, not whether it is complete. When in doubt, it is valid. "
+    },
+    "Otherwise FALSE."
+  )
+  fields <- list(answer, ellmer::type_boolean(rule), retry_hint_type())
+  names(fields) <- c(id, "valid", "retry_hint")
+  do.call(ellmer::type_object, fields)
+}
+
+retry_hint_type <- function() {
+  ellmer::type_string(
+    paste(
+      "Fill only if valid is FALSE: one short, friendly sentence to the user",
+      "that responds to what they said, then says briefly what is still",
+      "missing, to nudge them back to the question. Do not repeat the",
+      "question. Speak to the user directly. Do not mention rules,",
+      "validation, or a validator, and do not quote the condition. Otherwise",
+      "omit this field."
+    ),
+    required = FALSE
+  )
+}
+
+question_ids <- function(spec) {
+  vapply(spec$questions, \(question) question$id, character(1))
+}
+
+is_adaptive <- function(question) {
+  inherits(question$text, "surveychat_prompt")
+}
+
+question_templates <- function(question) {
+  c(
+    if (is_adaptive(question)) question$text$prompt else question$text,
+    question$intro$prompt,
+    question$choices$prompt$prompt
+  )
+}
+
+# The choices of a question as `list(prompt, fixed)`: an optional prompt_llm()
+# for generated choices and the fixed choices. NULL if there are none.
+question_choices <- function(
+  choices,
+  answer,
+  call = rlang::caller_env()
+) {
+  # The choices of an enum are its values
+  if (is.null(choices)) {
+    if (!inherits(answer, "ellmer::TypeEnum")) {
+      return(NULL)
+    }
+    return(list(prompt = NULL, fixed = answer@values))
+  }
+  parts <- if (
+    is.character(choices) || inherits(choices, "surveychat_prompt")
+  ) {
+    list(choices)
+  } else if (is.list(choices) && !is.object(choices)) {
+    choices
+  } else {
+    list(NULL)
+  }
+  is_prompt <- vapply(parts, \(x) inherits(x, "surveychat_prompt"), logical(1))
+  is_fixed <- vapply(
+    parts,
+    \(x) is.character(x) && length(x) > 0 && !anyNA(x) && all(nzchar(x)),
+    logical(1)
+  )
+  if (length(parts) == 0 || !all(is_prompt | is_fixed) || sum(is_prompt) > 1) {
+    cli::cli_abort(
+      c(
+        "{.arg choices} must be {.code NULL}, a character vector with no empty values, a {.fn prompt_llm}, or a list of one {.fn prompt_llm} and strings.",
+        "x" = "It is {.obj_type_friendly {choices}}."
+      ),
+      call = call
+    )
+  }
+  prompt <- if (any(is_prompt)) parts[[which(is_prompt)]]
+  if (!is.null(prompt$format)) {
+    cli::cli_abort("{.arg choices} cannot have a {.arg format}.", call = call)
+  }
+  fixed <- unlist(parts[is_fixed], use.names = FALSE)
+  values <- enum_values(answer)
+  if (!is.null(values)) {
+    unknown <- setdiff(fixed, values)
+    if (length(unknown) > 0) {
+      cli::cli_abort(
+        c(
+          "Each choice of an enum answer must be one of its values.",
+          "x" = "{.val {unknown}} {?is/are} not in {.val {values}}."
+        ),
+        call = call
+      )
+    }
+  }
+  # The form shows only the values of a multi-select
+  if (!is.null(prompt) && answer_kind(answer) == "multi") {
+    cli::cli_abort(
+      "A multi-select answer cannot have generated {.arg choices}.",
+      call = call
+    )
+  }
+  list(prompt = prompt, fixed = if (length(fixed)) fixed)
+}
+
+warn_placeholders <- function(templates, known, where) {
+  used <- unique(unlist(lapply(templates, extract_variables)))
+  unknown <- setdiff(used, known)
+  if (length(unknown)) {
+    placeholders <- paste0("{", unknown, "}")
+    cli::cli_warn(c(
+      "{where} uses {cli::qty(unknown)}placeholder{?s} {.code {placeholders}} that {?does/do} not name an earlier question.",
+      "i" = "The user will see the raw name. Check the spelling and the order of the questions."
+    ))
+  }
+  invisible(unknown)
+}
+
+compact <- function(x) {
+  x[!vapply(x, is.null, logical(1))]
+}
