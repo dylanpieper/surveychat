@@ -1,6 +1,6 @@
 # surveychat <a href="https://dylanpieper.github.io/surveychat/"><img src="man/figures/logo.png" align="right" height="139" alt="A round stone tablet with carved lips in the center, surrounded by carved checkboxes and radio buttons."/></a>
 
-surveychat is a [shinychat](https://posit-dev.github.io/shinychat/) toolkit for conversational and adaptive surveys. Users answer in an AI chat or form. An LLM validates each answer, extracts answer data, and writes the next question or checks if it was already answered. Each answer goes to SQL tables through any DBI connection. Participants get treated in context; you get richer data.
+surveychat is a [shinychat](https://posit-dev.github.io/shinychat/) toolkit for conversational and adaptive surveys. Participants answer in natural dialogue with an AI chat or in a form. An LLM checks typed answers against a default or custom rule, extracts data, and writes adaptive questions or skips ones already answered. Each answer goes to SQL tables through any DBI connection. Earlier answers pipe into later questions, so participants get a conversation in context and you get richer data.
 
 ## Installation
 
