@@ -174,7 +174,7 @@ test_that("the workshop closing line is one short reply with no thanks", {
   )
 })
 
-test_that("the workshop intro is short, asks nothing, and stays neutral", {
+test_that("the workshop intro is short, asks nothing, and does not read a skip as silence", {
   chat <- live_chat()
   intro <- Filter(\(q) q$id == "project", workshop_survey()$questions)[[
     1
