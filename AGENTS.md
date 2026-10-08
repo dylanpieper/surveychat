@@ -28,7 +28,7 @@ The live checks test what only a real model can show. A unit test scripts the mo
 - An adaptive question is skipped when the answers already cover it, and asked when they do not.
 - The closing line of the workshop example is short, has no thanks, and asks nothing.
 - The intro of the workshop example is short and asks nothing.
-- When the experience question was skipped, it does not say that the user gave no answer.
+- When the experience question was skipped, the workshop intro does not mention experience or say that the user gave no answer.
 - An adaptive question does not list examples or name tools, unless its prompt asks for them.
 
 Requirements:
