@@ -17,7 +17,7 @@ surveychat::run_example("panel-chat-form", chat = "anthropic/claude-haiku-4-5")
 ```
 
 <p align="center">
-<img src="man/figures/panel-chat-form.gif" alt="Screen recording of the AI Coding Workshop sign-up in the AI chat. The user types the name Dylan, and the chat replies Hey, Dylan! and asks for a role. Dylan clicks Software Engineer, checks two workshop days, clicks Maybe for dinner, and types Vegetarian and Agentic coding. The chat then writes a new question about experience with AI tools. Dylan types I use Claude Code, and the chat replies: Great! You're already familiar with Claude. Let's build on that today. It asks about a project, Dylan names an R package called surveychat, and the chat asks what surveychat does. After that answer, the chat comments in one sentence, says Thanks, Dylan! See you at the workshop., and shows Survey complete."/>
+<img src="man/figures/panel-chat-form.gif" alt="Screen recording of the AI Coding Workshop sign-up in the AI chat. The user types the name Dylan, and the chat replies Hey, Dylan! and asks for a role. Dylan clicks Software Engineer, checks two workshop days, clicks Maybe for dinner, and types Vegetarian for diet and Agentic coding as a learning goal. The chat then writes a new question about experience with AI tools. Dylan types I use Claude Code, and the chat replies: Great! You're already familiar with Claude. Let's build on that today. It asks about a project, Dylan names an R package called surveychat, and the chat asks what surveychat does. After that answer, the chat comments in one sentence, says Thanks, Dylan! See you at the workshop., and shows Survey complete."/>
 </p>
 
 ## Learn more
