@@ -1,4 +1,5 @@
-# Live checks of model behavior that the unit tests script with fake_chat().
+# Live checks of model behavior that the unit tests script with fake_chat(),
+# and of the rows that a real run writes to the database.
 # They call Claude Haiku and skip without ANTHROPIC_API_KEY. Run them with
 # tests/live/run.R; R CMD check and CI do not run this folder.
 
@@ -275,4 +276,143 @@ test_that("a reply that builds on an earlier answer is valid", {
     answers = answers
   )
   expect_false(isTRUE(off$valid))
+})
+
+# Database ----
+
+# A SurveySession on a new SQLite file, which is deleted after the test.
+# Returns list(session, path).
+local_file_session <- function(spec, chat, env = parent.frame()) {
+  skip_if_not_installed("RSQLite")
+  path <- withr::local_tempfile(fileext = ".sqlite", .local_envir = env)
+  con <- DBI::dbConnect(RSQLite::SQLite(), path)
+  withr::defer(DBI::dbDisconnect(con), envir = env)
+  list(session = SurveySession$new(spec, chat, con), path = path)
+}
+
+# Answers each question that the session asks with the next reply in
+# `replies[[id]]`, until the survey is complete. Returns the last result.
+answer_all <- function(session, replies) {
+  session$start()
+  session$first_question()
+  for (step in 1:20) {
+    id <- session$current_prompt()$id
+    queue <- replies[[id]]
+    if (length(queue) == 0) {
+      stop("No reply is left for question ", id, ".", call. = FALSE)
+    }
+    replies[[id]] <- queue[-1]
+    result <- session$process_input(queue[[1]])
+    if (isTRUE(result$complete)) {
+      return(result)
+    }
+  }
+  stop("The survey did not complete in 20 replies.", call. = FALSE)
+}
+
+# The tables as a new connection reads them from the file
+read_tables <- function(path) {
+  con <- DBI::dbConnect(RSQLite::SQLite(), path)
+  on.exit(DBI::dbDisconnect(con))
+  list(
+    sessions = DBI::dbReadTable(con, "sessions"),
+    responses = DBI::dbReadTable(con, "responses")
+  )
+}
+
+test_that("a workshop run writes each answer to the database file", {
+  chat <- live_chat()
+  survey <- workshop_survey()
+  run <- local_file_session(survey, chat)
+  replies <- list(
+    name = "I'm Dylan, a software engineer",
+    day = "Tuesday and Thursday",
+    dinner = "not sure yet",
+    diet = "vegetarian",
+    goal = c("asdf", "agentic coding"),
+    experience = "I use Claude Code every day",
+    project = "I want to make an R package called surveychat",
+    project_detail = "It lets people fill out forms in a chat"
+  )
+
+  result <- answer_all(run$session, replies)
+  expect_match(result$message, "Thanks, Dylan!", fixed = TRUE)
+
+  tables <- read_tables(run$path)
+  sessions <- tables$sessions
+  responses <- tables$responses
+  answer_of <- \(id) responses$answer_extracted[responses$question_id == id]
+
+  expect_equal(nrow(sessions), 1)
+  expect_equal(sessions$completed, 1L)
+  expect_false(is.na(sessions$completed_at))
+  expect_equal(sessions$version, "1.1")
+  expect_equal(sessions$methods, "chat,form")
+  expect_equal(sessions$retry_count, 1L)
+
+  # Every row belongs to the session, comes from the chat, has a UTC time,
+  # and has the order of its question in the spec
+  ids <- vapply(survey$questions, \(question) question$id, "")
+  expect_true(all(responses$session_id == sessions$session_id))
+  expect_true(all(responses$method == "chat"))
+  expect_match(
+    responses$responded_at,
+    "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}$"
+  )
+  expect_equal(responses$question_order, match(responses$question_id, ids))
+
+  expect_equal(answer_of("name"), "Dylan")
+  # The role came early in the name reply, as its own row with no question
+  role <- responses[responses$question_id == "role", ]
+  expect_equal(role$answer_extracted, "Software Engineer")
+  expect_equal(role$answer_raw, replies$name)
+  expect_true(is.na(role$question_text))
+  expect_equal(
+    jsonlite::fromJSON(answer_of("day")),
+    c("Tuesday, November 3", "Thursday, November 5")
+  )
+  expect_equal(answer_of("dinner"), "Maybe")
+  expect_match(answer_of("diet"), "vegetarian", ignore.case = TRUE)
+
+  # The reply that broke the rule is a row that is not valid, and the retry
+  # is a second row
+  goal <- responses[responses$question_id == "goal", ]
+  expect_equal(goal$answer_raw, replies$goal)
+  expect_equal(goal$valid, c(0L, 1L))
+  expect_equal(goal$retry_attempt, c(0L, 1L))
+
+  # An adaptive question stores the text that the model wrote
+  adaptive <- responses[responses$question_id %in% c("experience", "project"), ]
+  expect_true(all(nzchar(adaptive$question_text)))
+  expect_no_match(adaptive$question_text, "{", fixed = TRUE)
+
+  # The answers that later prompts pipe in are the ones in the file
+  kept <- run$session$answers_so_far()
+  for (id in names(kept)) {
+    question <- survey$questions[[match(id, ids)]]
+    stored <- utils::tail(answer_of(id), 1)
+    expect_equal(stored, stored_answer(question, kept[[id]]), label = id)
+  }
+})
+
+test_that("a relative date reply is stored as an ISO date", {
+  chat <- live_chat()
+  # Saturday, October 3, 2026
+  local_mocked_bindings(
+    now = function() as.POSIXct("2026-10-03 12:00:00"),
+    .package = "surveychat"
+  )
+  spec <- survey_spec() |>
+    add_question(
+      "day",
+      text = "Which day suits you?",
+      answer = ellmer::type_string("The day"),
+      input = "date"
+    )
+  run <- local_file_session(spec, chat)
+
+  answer_all(run$session, list(day = "tomorrow"))
+  responses <- read_tables(run$path)$responses
+  expect_equal(responses$answer_extracted, "2026-10-04")
+  expect_equal(responses$valid, 1L)
 })
