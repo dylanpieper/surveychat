@@ -69,7 +69,13 @@
 <div class="section level3">
 <h3 id="live-checks">Live checks<a class="anchor" aria-label="anchor" href="#live-checks"></a></h3>
 <p>The live checks test what only a real model can show. A unit test scripts the model reply, so it cannot catch a change in model behavior. The live checks cover these behaviors:</p>
-<ul><li>A vague reply to a yes or no question, such as “maybe”, is not valid.</li>
+<ul><li>A full run of the workshop example writes the right rows to a SQLite file.
+<ul><li>Each answer is stored in its stored form, such as a multi-select as JSON.</li>
+<li>An early answer, a retry, and an adaptive question each get the right row.</li>
+<li>The answers that later prompts use are the same as the answers in the file.</li>
+<li>A relative date reply is written to the file as <code>YYYY-MM-DD</code>.</li>
+</ul></li>
+<li>A vague reply to a yes or no question, such as “maybe”, is not valid.</li>
 <li>A date reply becomes <code>YYYY-MM-DD</code>, also a relative date such as “next Friday”.</li>
 <li>A free reply maps to an enum value.</li>
 <li>One reply answers a later question early.</li>
@@ -86,7 +92,7 @@
 <li>The suggested packages of the package, and devtools.</li>
 </ul><p>Run the checks from the package root:</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="ex">Rscript</span> tests/live/run.R</span></code></pre></div>
-<p>Each run makes about 15 small calls to Claude Haiku. Run the checks after a change to a prompt, a schema, or the model, and before a release. <code>.Rbuildignore</code> leaves <code>tests/live/</code> out of the package build, so <code>R CMD check</code> and CI do not run it.</p>
+<p>Each run makes about 30 small calls to Claude Haiku. Run the checks after a change to a prompt, a schema, or the model, and before a release. <code>.Rbuildignore</code> leaves <code>tests/live/</code> out of the package build, so <code>R CMD check</code> and CI do not run it.</p>
 </div>
 </div>
 </div>
