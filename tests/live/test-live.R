@@ -381,10 +381,16 @@ test_that("a workshop run writes each answer to the database file", {
   expect_equal(goal$valid, c(0L, 1L))
   expect_equal(goal$retry_attempt, c(0L, 1L))
 
-  # An adaptive question stores the text that the model wrote
-  adaptive <- responses[responses$question_id %in% c("experience", "project"), ]
-  expect_true(all(nzchar(adaptive$question_text)))
-  expect_no_match(adaptive$question_text, "{", fixed = TRUE)
+  # An adaptive question stores the text that the model wrote. The model can
+  # skip one, but not all three.
+  adaptive <- responses[
+    responses$question_id %in% c("experience", "project", "project_detail"),
+  ]
+  expect_gt(nrow(adaptive), 0, label = "Rows of adaptive questions")
+  if (nrow(adaptive) > 0) {
+    expect_true(all(nzchar(adaptive$question_text)))
+    expect_no_match(adaptive$question_text, "{", fixed = TRUE)
+  }
 
   # The answers that later prompts pipe in are the ones in the file
   kept <- run$session$answers_so_far()

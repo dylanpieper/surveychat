@@ -23,7 +23,7 @@ The live checks test what only a real model can show. A unit test scripts the mo
   - Each answer is stored in its stored form, such as a multi-select as JSON.
   - An early answer, a retry, and an adaptive question each get the right row.
   - The answers that later prompts use are the same as the answers in the file.
-- A relative date reply is stored as `YYYY-MM-DD`.
+  - A relative date reply is written to the file as `YYYY-MM-DD`.
 - A vague reply to a yes or no question, such as "maybe", is not valid.
 - A date reply becomes `YYYY-MM-DD`, also a relative date such as "next Friday".
 - A free reply maps to an enum value.
