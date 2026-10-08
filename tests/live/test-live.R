@@ -382,7 +382,7 @@ test_that("a workshop run writes each answer to the database file", {
   expect_equal(goal$retry_attempt, c(0L, 1L))
 
   # An adaptive question stores the text that the model wrote. The model can
-  # skip one, but not all three.
+  # skip any of them, but at least one of the three must be asked.
   adaptive <- responses[
     responses$question_id %in% c("experience", "project", "project_detail"),
   ]
