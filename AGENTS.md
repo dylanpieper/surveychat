@@ -36,8 +36,9 @@ The live checks cover these behaviors:
   asked when they do not.
 - The closing line of the workshop example is short, has no thanks, and
   asks nothing.
-- The intro of the workshop example is short, and it stays neutral when
-  the experience question was skipped.
+- The intro of the workshop example is short and asks nothing.
+- When the experience question was skipped, the workshop intro does not
+  mention experience or say that the user gave no answer.
 - An adaptive question does not list examples or name tools, unless its
   prompt asks for them.
 
