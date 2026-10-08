@@ -19,6 +19,11 @@ Run them from the package root with `devtools::test()` and `NOT_CRAN=true`.
 
 The live checks test what only a real model can show. A unit test scripts the model reply, so it cannot catch a change in model behavior. The live checks cover these behaviors:
 
+- A full run of the workshop example writes the right rows to a SQLite file.
+  - Each answer is stored in its stored form, such as a multi-select as JSON.
+  - An early answer, a retry, and an adaptive question each get the right row.
+  - The answers that later prompts use are the same as the answers in the file.
+  - A relative date reply is written to the file as `YYYY-MM-DD`.
 - A vague reply to a yes or no question, such as "maybe", is not valid.
 - A date reply becomes `YYYY-MM-DD`, also a relative date such as "next Friday".
 - A free reply maps to an enum value.
@@ -42,4 +47,4 @@ Run the checks from the package root:
 Rscript tests/live/run.R
 ```
 
-Each run makes about 15 small calls to Claude Haiku. Run the checks after a change to a prompt, a schema, or the model, and before a release. `.Rbuildignore` leaves `tests/live/` out of the package build, so `R CMD check` and CI do not run it.
+Each run makes about 30 small calls to Claude Haiku. Run the checks after a change to a prompt, a schema, or the model, and before a release. `.Rbuildignore` leaves `tests/live/` out of the package build, so `R CMD check` and CI do not run it.
