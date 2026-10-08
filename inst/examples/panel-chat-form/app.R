@@ -94,9 +94,10 @@ survey <- survey_spec(version = "1.1") |>
       paste(
         "Write under 12 words to come before the next question. Their",
         "experience with AI coding: {experience|unknown}. If it is",
-        "unknown, write a neutral transition that does not mention experience.",
-        "Otherwise, acknowledge what they said plainly, like a person who",
-        "listened. Do not praise or describe any tool, and do not ask a",
+        "unknown, write a neutral transition like",
+        "'No problem! That's what the workshop is for.'",
+        "Otherwise, acknowledge what they said in a friendly tone.",
+        "Do not praise or describe any tool, and do not ask a",
         "question."
       ),
       format = "{content}"
