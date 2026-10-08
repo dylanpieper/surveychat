@@ -174,7 +174,7 @@ test_that("the workshop closing line is one short reply with no thanks", {
   )
 })
 
-test_that("the workshop intro is short, asks nothing, and stays neutral", {
+test_that("the workshop intro is short, asks nothing, and does not read a skip as silence", {
   chat <- live_chat()
   intro <- Filter(\(q) q$id == "project", workshop_survey()$questions)[[
     1
@@ -195,7 +195,7 @@ test_that("the workshop intro is short, asks nothing, and stays neutral", {
     expect_lte(word_count(line), 18)
     expect_no_match(line, "?", fixed = TRUE)
   }
-  # A skipped experience question is not read as a user who said nothing
+  # A skipped experience question is not mentioned or read as a user who said nothing
   expect_no_match(
     missing,
     "haven't|have not|didn't|did not|not shared|unknown|experience",
